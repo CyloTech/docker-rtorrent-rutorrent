@@ -1,3 +1,6 @@
+# Remove max file size
+system.file.max_size.set = -1
+
 # Maximum and minimum number of peers to connect to per torrent
 throttle.min_peers.normal.set = 1
 throttle.max_peers.normal.set = 100
@@ -23,7 +26,7 @@ protocol.pex.set = yes
 
 # Check hash for finished torrents. Might be useful until the bug is
 # fixed that causes lack of diskspace not to be properly reported
-pieces.hash.on_completion.set = yes
+pieces.hash.on_completion.set = no
 
 # Set whether the client should try to connect to UDP trackers
 #trackers.use_udp.set = yes
@@ -54,7 +57,7 @@ schedule2 = untied_directory, 5, 5, (cat,"stop_untied=",(cfg.watch),"*.torrent")
 # Close torrents when diskspace is low
 schedule2 = monitor_diskspace, 15, 60, ((close_low_diskspace,1000M))
 
-# Move finished (without Autotools/Automove plugin on ruTorrent)
-method.insert = d.get_finished_dir, simple, "cat=$cfg.download_complete=,$d.custom1="
-method.insert = d.move_to_complete, simple, "d.directory.set=$argument.1=; execute=mkdir,-p,$argument.1=; execute=mv,-u,$argument.0=,$argument.1=; d.save_full_session="
-method.set_key = event.download.finished,move_complete,"d.move_to_complete=$d.data_path=,$d.get_finished_dir="
+# Move finished (no need Autotools/Automove plugin on ruTorrent)
+# method.insert = d.get_finished_dir, simple, "cat=$cfg.download_complete=,$d.custom1="
+# method.insert = d.move_to_complete, simple, "d.directory.set=$argument.1=; execute=mkdir,-p,$argument.1=; execute=mv,-u,$argument.0=,$argument.1=; d.save_full_session="
+# method.set_key = event.download.finished,move_complete,"d.move_to_complete=$d.data_path=,$d.get_finished_dir="

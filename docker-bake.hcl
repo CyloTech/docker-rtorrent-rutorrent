@@ -21,6 +21,16 @@ target "image-local" {
   output = ["type=docker"]
 }
 
+target "amd64" {
+  inherits = ["image"]
+  platforms = [
+    "linux/amd64"
+  ]
+  networkmode = "host"
+  dns = ["8.8.8.8"]
+  no-cache = true
+}
+
 target "image-all" {
   inherits = ["image"]
   platforms = [

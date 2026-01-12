@@ -1,0 +1,130 @@
+FROM docker.io/library/rtorrent-rutorrent:local
+
+RUN apk add --update --no-cache 7zip findutils  
+
+# Additional packages required for autodl-irssi
+
+RUN apk --update --no-cache add \
+    gcc \
+    git \
+    irssi-perl \
+    make \
+    musl-dev \
+    perl-app-cpanminus \
+    perl-net-ssleay \
+    perl-dev \
+    dtach \
+    sudo \
+    wget \
+    gettext \
+    gettext-dev \
+    perl-xml-libxml \
+    perl-archive-zip \
+    perl-html-parser \
+    perl-digest-sha1 \
+    perl-json \
+    perl-json-xs
+
+RUN chmod 777 home
+
+USER rtorrent
+
+RUN <<EOT 
+mkdir -p ~/.irssi/scripts/autorun
+cd ~/.irssi/scripts
+curl -sL http://git.io/vlcND | grep -Po '(?<="browser_download_url": ")(.*-v[\d.]+.zip)' | xargs wget --quiet -O autodl-irssi.zip
+unzip -o autodl-irssi.zip
+rm autodl-irssi.zip
+cp autodl-irssi.pl autorun/
+mkdir -p ~/.autodl
+mkdir -p ~/watch
+touch ~/.autodl/autodl.cfg
+cd ~/.autodl
+rm -f autodl2.cfg
+echo 'load perl' >> ~/.irssi/startup
+
+if [ -f "autodl.cfg" ]; then
+  if (grep -sq gui-server-port autodl.cfg) && (grep -sq gui-server-password autodl.cfg); then
+    sed -i "/gui-server-port/ c\gui-server-port = 36001" autodl.cfg
+    sed -i "/gui-server-password/ c\gui-server-password = 123456789" autodl.cfg
+  else
+    sed -i '/gui-server-port/ d' autodl.cfg
+    sed -i '/gui-server-password/ d' autodl.cfg
+    echo >> autodl.cfg
+    sed -i "1s/^/[options]\ngui-server-port = 36001\ngui-server-password = 123456789\n/" autodl.cfg
+  fi
+else
+  echo "[options]" > autodl.cfg
+  echo "gui-server-port = 36001" >> autodl.cfg
+  echo "gui-server-password = 123456789" >> autodl.cfg
+fi
+EOT
+
+USER root
+
+RUN <<EOT
+mkdir /var/www/rutorrent/plugins/autodl-rutorrent
+cd /var/www/rutorrent/plugins/autodl-rutorrent
+git clone -b ruTorrentFixes https://github.com/CyloTech/autodl-rutorrent.git .
+rm -rf .git*
+rm -f _conf.php
+touch conf.php
+echo "<?php" >>conf.php
+echo '$autodlPort = 36001;' >> conf.php
+echo '$autodlPassword = "123456789";' >> conf.php
+cd /var/www/rutorrent/plugins
+chown -R nobody:nogroup autodl-rutorrent
+EOT
+
+# https://github.com/nelu/rutorrent-dock/blob/5357bd94bfc026ff0a6645501487ac140d7a92fe/src/build/Dockerfile#L48
+
+ARG FILEMANAGER_VER=master
+ARG FILEMANAGER_MEDIA_VER=master
+ARG FILEMANAGER_SHARE_VER=master
+
+ENV APP_HOME 	/var/www/rutorrent
+
+RUN  curl https://www.rarlab.com/rar/rarlinux-x64-700.tar.gz | tar -xzvf - -C /tmp/ \
+               && cp -rfp /tmp/rar/rar /usr/bin/rar && rm -rf /tmp/rar
+
+RUN mkdir -p "$APP_HOME" \
+    && mkdir "$APP_HOME/plugins/filemanager" \
+    && mkdir "$APP_HOME/no-auth" \
+    && curl https://codeload.github.com/nelu/rutorrent-filemanager/tar.gz/${FILEMANAGER_VER} \
+     | tar -xzf - --overwrite-dir --strip-components=1 -C "$APP_HOME/plugins/filemanager" \
+    && mkdir "$APP_HOME/plugins/filemanager-share" \
+    && curl https://codeload.github.com/nelu/rutorrent-filemanager-share/tar.gz/${FILEMANAGER_SHARE_VER} \
+    | tar -xzf - --overwrite-dir --strip-components=1 -C "$APP_HOME/plugins/filemanager-share" \
+    && mkdir "$APP_HOME/plugins/filemanager-media" \
+    && curl https://codeload.github.com/nelu/rutorrent-filemanager-media/tar.gz/${FILEMANAGER_MEDIA_VER} \
+     | tar -xzf - --overwrite-dir --strip-components=1 -C "$APP_HOME/plugins/filemanager-media" \
+    && chmod 775 -R "$APP_HOME" \
+    && chown -R nobody:nogroup "$APP_HOME" \
+    && mkdir "$APP_HOME/plugins/ratiocolor" \
+    && curl https://codeload.github.com/Gyran/rutorrent-ratiocolor/tar.gz/master \
+     | tar -xzf - --overwrite-dir --strip-components=1 -C "$APP_HOME/plugins/ratiocolor" \
+    && sed -i 's/changeWhat = "cell-background";/changeWhat = "font";/g' "$APP_HOME/plugins/ratiocolor/init.js" \
+    && mkdir -p "$APP_HOME/plugins/theme/themes/club-QuickBox" \
+    && curl https://codeload.github.com/QuickBox/club-QuickBox/tar.gz/master \
+     | tar -xzf - --overwrite-dir --strip-components=1 -C "$APP_HOME/plugins/theme/themes/club-QuickBox"
+
+#remove unused packages
+RUN apk --update --no-cache del \
+    gcc \
+    git \
+    make \
+    musl-dev \
+    perl-app-cpanminus \
+    perl-dev \
+    wget \
+    gettext \
+    gettext-dev
+
+COPY rootfs /
+
+RUN find / \( -path /proc -o -path /sys -o -path /dev \) -prune -o -uid +9999 -exec chown 9999:9999 {} + \
+    && find / \( -path /proc -o -path /sys -o -path /dev \) -prune -o -gid +9999 -exec chown 9999:9999 {} +
+
+EXPOSE 8080
+
+ENTRYPOINT [ "/init" ]
