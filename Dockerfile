@@ -358,6 +358,11 @@ RUN python3 /usr/local/bin/patch-rutorrent-cli-arguments.py /var/www/rutorrent \
 RUN python3 /usr/local/bin/patch-rutorrent-dht-port.py /var/www/rutorrent \
   && php85 -l /var/www/rutorrent/php/methods-0.16.0.php
 
+# Completed-data loads must get a Finished time with rTorrent 0.16.
+COPY scripts/patch-rutorrent-seedingtime.py /usr/local/bin/patch-rutorrent-seedingtime.py
+RUN python3 /usr/local/bin/patch-rutorrent-seedingtime.py /var/www/rutorrent \
+  && php85 -l /var/www/rutorrent/plugins/seedingtime/init.php
+
 # Allow rTorrent to flush its session before s6 escalates shutdown.
 ENV S6_SERVICES_GRACETIME="25000"
 

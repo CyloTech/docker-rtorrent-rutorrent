@@ -38,9 +38,9 @@ app:
 
 image:
   name: "rutorrent"
-  version: "5.3.14-0.16.23-1"
-  tag: "5.3.14-0.16.23-1"
-  digest: "repo.cylo.net/rutorrent@sha256:452cf30b6f99f2274750544d379fad50d8ea26adaf19ae473513cac7970b14b9"
+  version: "5.3.14-0.16.23-2"
+  tag: "5.3.14-0.16.23-2"
+  digest: null
 
 container:
   cmd: null

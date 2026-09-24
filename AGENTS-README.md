@@ -13,7 +13,7 @@ users, additional plugins, and a custom mobile ruTorrent UI.
 
 ## Current Image State
 
-- Registry tag: `repo.cylo.net/rutorrent:5.3.14-0.16.23-1`
+- Registry tag: `repo.cylo.net/rutorrent:5.3.14-0.16.23-2`
 - Base runtime: `crazymax/alpine-s6:3.24-3.2.3.0`
 - rTorrent / libtorrent: `0.16.23`
 - ruTorrent: `5.3.14`
@@ -181,8 +181,8 @@ ssh appbox@builder.tester2.appboxes.co -p12246 \
   "mkdir -p /home/appbox/builds/docker-rtorrent-rutorrent && \
    tar xzf - -C /home/appbox/builds/docker-rtorrent-rutorrent && \
    cd /home/appbox/builds/docker-rtorrent-rutorrent && \
-   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.14-0.16.23-1 . && \
-   docker push repo.cylo.net/rutorrent:5.3.14-0.16.23-1"
+   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.14-0.16.23-2 . && \
+   docker push repo.cylo.net/rutorrent:5.3.14-0.16.23-2"
 ```
 
 Only build, push, or commit when the user explicitly asks. Do not force-push or reset.
@@ -198,7 +198,7 @@ docker run --rm --platform linux/amd64 \
   -p 8080:80 \
   -v rutorrent-torrents:/torrents \
   -v rutorrent-passwd:/passwd \
-  repo.cylo.net/rutorrent:5.3.14-0.16.23-1
+  repo.cylo.net/rutorrent:5.3.14-0.16.23-2
 ```
 
 Open `http://localhost:8080/`. Force mobile mode with `http://localhost:8080/index.html?mobile=1`.
@@ -231,3 +231,13 @@ Other rules and settings are left intact by this migration. It does not change
 torrent states or remove downloaded data; previously stopped torrents can be
 started after updating. Fresh install, restart, configured-state migration and
 upgrade checks live in scripts/release-gate.py.
+
+## Finished time compatibility
+
+Release `5.3.14-0.16.23-2` backports the ruTorrent seedingtime hash-done fix.
+`scripts/patch-rutorrent-seedingtime.py` replaces the chained condition with
+nested branches supported by rTorrent 0.16. Newly created and already-complete
+torrents receive a Finished time; existing times are preserved. The build refuses
+an unexpected plugin layout. The release gate exercises Create Torrent,
+incomplete torrents, timestamp preservation, restart, and the previous image's
+persistent volume. Custom replacement seedingtime plugins remain user-managed.

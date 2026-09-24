@@ -8,7 +8,7 @@ file manager plugins, WebDAV, and a refreshed mobile ruTorrent UI.
 The current Appbox image tag is:
 
 ```bash
-repo.cylo.net/rutorrent:5.3.14-0.16.23-1
+repo.cylo.net/rutorrent:5.3.14-0.16.23-2
 ```
 
 ## Current Versions
@@ -206,7 +206,7 @@ Production builds target `linux/amd64`.
 Local build:
 
 ```bash
-docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.14-0.16.23-1 .
+docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.14-0.16.23-2 .
 ```
 
 Remote builder currently used for release builds:
@@ -223,8 +223,8 @@ ssh appbox@builder.tester2.appboxes.co -p12246 \
   "mkdir -p /home/appbox/builds/docker-rtorrent-rutorrent && \
    tar xzf - -C /home/appbox/builds/docker-rtorrent-rutorrent && \
    cd /home/appbox/builds/docker-rtorrent-rutorrent && \
-   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.14-0.16.23-1 . && \
-   docker push repo.cylo.net/rutorrent:5.3.14-0.16.23-1"
+   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.14-0.16.23-2 . && \
+   docker push repo.cylo.net/rutorrent:5.3.14-0.16.23-2"
 ```
 
 Only push a registry tag when the user explicitly asks for it.
@@ -240,7 +240,7 @@ docker run --rm --platform linux/amd64 \
   -p 8080:80 \
   -v rutorrent-torrents:/torrents \
   -v rutorrent-passwd:/passwd \
-  repo.cylo.net/rutorrent:5.3.14-0.16.23-1
+  repo.cylo.net/rutorrent:5.3.14-0.16.23-2
 ```
 
 Open `http://localhost:8080/` and sign in with the provided credentials. Force mobile
@@ -374,8 +374,18 @@ graceful shutdown and persisted configuration behavior are retained.
 Run the exact-image release gate on the dedicated builder before publishing:
 
 ```sh
-python3 scripts/session-release-gate.py repo.cylo.net/rutorrent:5.3.14-0.16.23-1
+python3 scripts/session-release-gate.py repo.cylo.net/rutorrent:5.3.14-0.16.23-2
 ```
 
-The upgrade gate starts from the immutable 5.3.14-0.16.22-3 image and verifies
+The current upgrade gate starts from the immutable 5.3.14-0.16.23-1 image and verifies
 torrent sessions, custom configuration, authentication and data retention.
+
+## Finished time compatibility
+
+Release `5.3.14-0.16.23-2` backports the ruTorrent seedingtime hash-done fix.
+`scripts/patch-rutorrent-seedingtime.py` replaces the chained condition with
+nested branches supported by rTorrent 0.16. Newly created and already-complete
+torrents receive a Finished time; existing times are preserved. The build refuses
+an unexpected plugin layout. The release gate exercises Create Torrent,
+incomplete torrents, timestamp preservation, restart, and the previous image's
+persistent volume. Custom replacement seedingtime plugins remain user-managed.

@@ -10,10 +10,10 @@ import subprocess
 import sys
 import time
 
-EXPECTED = "repo.cylo.net/rutorrent:5.3.14-0.16.23-1"
-PREVIOUS = "repo.cylo.net/rutorrent@sha256:937001afc5cdaa91d4e237358964bf1daa4e735e85f61dd3a94570235e367e5f"
+EXPECTED = "repo.cylo.net/rutorrent:5.3.14-0.16.23-2"
+PREVIOUS = "repo.cylo.net/rutorrent@sha256:452cf30b6f99f2274750544d379fad50d8ea26adaf19ae473513cac7970b14b9"
 assert len(sys.argv) == 2 and sys.argv[1] == EXPECTED, "Unexpected image reference"
-RUN = "rutorrent-php85-gate-" + secrets.token_hex(6)
+RUN = "rutorrent-seedingtime-gate-" + secrets.token_hex(6)
 LABEL = "appbox.release-gate=" + RUN
 containers, volumes = [], []
 network = None
@@ -123,6 +123,12 @@ def check_php_cli(container, old=False):
     value = command(args, data=php_cli_code, timeout=120)
     print("PASS PHP CLI diagnostic: " + value, flush=True)
 
+seedingtime_code = Path(__file__).with_name("seedingtime-test-in-container.py").read_text()
+
+def check_seedingtime(container, mode):
+    value = command(["docker", "exec", "-i", container, "python3", "-", mode], data=seedingtime_code, timeout=240)
+    print("PASS Finished time " + mode + ": " + value, flush=True)
+
 network_code = Path(__file__).with_name("network-test-in-container.py").read_text()
 
 def check_network(container, mode="current"):
@@ -171,7 +177,8 @@ for suffix,target in (('torrents','/torrents'),('passwd','/passwd')):
     storage.append((volume,target))
 old=RUN+'-old'
 run_app(old,PREVIOUS,'old',storage,interval='10800')
-check_php_cli(old, old=True)
+check_php_cli(old)
+check_seedingtime(old,"old")
 inside(old,'web','appbox-watch-gate-session-existing')
 inside(old,'save')
 check_network(old)
@@ -182,6 +189,7 @@ command(['docker','stop','--time','30',old])
 fresh=RUN+'-fresh'
 run_app(fresh,EXPECTED,'fresh',[])
 check_php_cli(fresh)
+check_seedingtime(fresh,"fresh")
 session(fresh,'config');inside(fresh,'versions')
 check_network(fresh)
 # Docker may complete a restart slowly while other image exports saturate I/O.
@@ -189,6 +197,8 @@ check_network(fresh)
 command(['docker','restart','--time','30',fresh],timeout=600);wait_healthy(fresh);wait_plugins(fresh)
 session(fresh,'config');check_network(fresh)
 check_php_cli(fresh)
+check_seedingtime(fresh,"retained")
+check_seedingtime(fresh,"restarted")
 seed_ip=command(['docker','inspect','--format','{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}',fresh])
 assert re.fullmatch(r'[0-9.]+',seed_ip)
 tracker=RUN+'-tracker';containers.append(tracker)
@@ -211,6 +221,8 @@ print('PASS fresh install and completion-save: private 32 MiB seed saved as comp
 upgraded=RUN+'-upgrade'
 run_app(upgraded,EXPECTED,'upgrade',storage,interval='10800')
 check_php_cli(upgraded)
+check_seedingtime(upgraded,"upgrade")
+check_seedingtime(upgraded,"upgraded")
 session(upgraded,'config');session(upgraded,'retained-config')
 inside(upgraded,'versions');inside(upgraded,'retained')
 check_network(upgraded)
@@ -256,6 +268,7 @@ command(['docker','start',upgraded]);wait_healthy(upgraded);wait_plugins(upgrade
 after=wait_session(upgraded,lambda v:v['hashing']==0 and v['live']>=disk['saved'])
 session(upgraded,'retained-config');inside(upgraded,'retained')
 check_network(upgraded)
+check_seedingtime(upgraded,'retained')
 print('PASS graceful stop flushes latest resume state and restart preserves it: '+json.dumps({'seconds':round(elapsed,1),'saved_chunks':disk['saved'],'restored_chunks':after['live']}),flush=True)
 # Observe beyond the removed thirty-second startup recovery timer.
 time.sleep(35)
