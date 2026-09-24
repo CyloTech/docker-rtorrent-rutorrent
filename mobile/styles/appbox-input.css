@@ -541,7 +541,7 @@
 
   /* ---- Progress ---- */
   .progress {
-    @apply relative mt-2 h-2.5 w-full overflow-hidden rounded-full bg-zinc-200;
+    @apply relative mt-2 flex h-2.5 w-full overflow-hidden rounded-full bg-zinc-200;
   }
 
   .progress.active .progress-bar {
@@ -549,7 +549,7 @@
   }
 
   .progress-bar {
-    @apply flex h-full items-center justify-end rounded-full bg-linear-to-r from-indigo-500 to-violet-500 pr-1 text-[9px] font-semibold text-white transition-all duration-300;
+    @apply flex h-full items-center justify-center rounded-full bg-linear-to-r from-indigo-500 to-violet-500 text-center text-[9px] font-semibold leading-none text-white transition-all duration-300;
   }
 
   .progress-bar-striped {
@@ -786,6 +786,7 @@
   html[data-theme="dark"] .empty-state-title,
   html[data-theme="dark"] .summary-value,
   html[data-theme="dark"] .detail-chip strong,
+  html[data-theme="dark"] .metric-value,
   html[data-theme="dark"] .torrent-row-percent,
   html[data-theme="dark"] #torrentsList #list h5,
   html[data-theme="dark"] #torrentDetailsHeader h5 {

@@ -2,9 +2,11 @@
 # shellcheck shell=sh
 
 echo "Fixing perms..."
-mkdir -p /data/rtorrent \
-  /data/rutorrent \
-  /downloads \
+mkdir -p /torrents/config/rtorrent \
+  /torrents/config/rutorrent \
+  /torrents/completed \
+  /torrents/downloading \
+  /torrents/watch \
   /passwd \
   /etc/nginx/conf.d \
   /etc/rtorrent \
@@ -15,10 +17,12 @@ mkdir -p /data/rtorrent \
   /var/run/php-fpm \
   /var/run/rtorrent
 chown rtorrent:rtorrent \
-  /data \
-  /data/rtorrent \
-  /data/rutorrent \
-  /downloads
+  /torrents/config \
+  /torrents/config/rtorrent \
+  /torrents/config/rutorrent \
+  /torrents/completed \
+  /torrents/downloading \
+  /torrents/watch
 chown -R rtorrent:rtorrent \
   /etc/rtorrent \
   /passwd \
@@ -26,7 +30,7 @@ chown -R rtorrent:rtorrent \
   /var/cache/nginx \
   /var/lib/nginx \
   /var/log/nginx \
-  /var/log/php82 \
+  /var/log/php85 \
   /var/run/nginx \
   /var/run/php-fpm \
   /var/run/rtorrent

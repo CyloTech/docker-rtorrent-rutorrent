@@ -1,2 +1,6 @@
 /*.sh linguist-detectable=false
 /rootfs/** linguist-detectable=false
+
+.github export-ignore
+examples export-ignore
+test export-ignore

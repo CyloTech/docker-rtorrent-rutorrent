@@ -1,378 +1,381 @@
-<p align="center"><a href="https://github.com/crazy-max/docker-rtorrent-rutorrent" target="_blank"><img height="128" src="https://raw.githubusercontent.com/crazy-max/docker-rtorrent-rutorrent/master/.github/docker-rtorrent-rutorrent.jpg"></a></p>
+# rTorrent + ruTorrent for Appbox
 
-<p align="center">
-  <a href="https://hub.docker.com/r/crazymax/rtorrent-rutorrent/tags?page=1&ordering=last_updated"><img src="https://img.shields.io/github/v/tag/crazy-max/docker-rtorrent-rutorrent?label=version&style=flat-square" alt="Latest Version"></a>
-  <a href="https://github.com/crazy-max/docker-rtorrent-rutorrent/actions?workflow=build"><img src="https://img.shields.io/github/actions/workflow/status/crazy-max/docker-rtorrent-rutorrent/build.yml?branch=master&label=build&logo=github&style=flat-square" alt="Build Status"></a>
-  <a href="https://hub.docker.com/r/crazymax/rtorrent-rutorrent/"><img src="https://img.shields.io/docker/stars/crazymax/rtorrent-rutorrent.svg?style=flat-square&logo=docker" alt="Docker Stars"></a>
-  <a href="https://hub.docker.com/r/crazymax/rtorrent-rutorrent/"><img src="https://img.shields.io/docker/pulls/crazymax/rtorrent-rutorrent.svg?style=flat-square&logo=docker" alt="Docker Pulls"></a>
-  <br /><a href="https://github.com/sponsors/crazy-max"><img src="https://img.shields.io/badge/sponsor-crazy--max-181717.svg?logo=github&style=flat-square" alt="Become a sponsor"></a>
-  <a href="https://www.paypal.me/crazyws"><img src="https://img.shields.io/badge/donate-paypal-00457c.svg?logo=paypal&style=flat-square" alt="Donate Paypal"></a>
-</p>
+Appbox packaging for rTorrent, libtorrent, and ruTorrent based on the upstream
+[`crazy-max/docker-rtorrent-rutorrent`](https://github.com/crazy-max/docker-rtorrent-rutorrent)
+image, with Appbox lifecycle scripts, persisted `/torrents` layout, autodl support,
+file manager plugins, WebDAV, and a refreshed mobile ruTorrent UI.
 
-## About
+The current Appbox image tag is:
 
-[rTorrent](https://github.com/rakshasa/rtorrent) with [ruTorrent](https://github.com/Novik/ruTorrent)
-Docker image.
-
-> **Note**
-> 
-> Want to be notified of new releases? Check out 🔔 [Diun (Docker Image Update Notifier)](https://github.com/crazy-max/diun)
-> project!
-
-___
-
-* [Features](#features)
-* [Build locally](#build-locally)
-* [Image](#image)
-* [Environment variables](#environment-variables)
-  * [General](#general)
-  * [rTorrent](#rtorrent)
-  * [ruTorrent](#rutorrent)
-* [Volumes](#volumes)
-* [Ports](#ports)
-* [Usage](#usage)
-  * [Docker Compose](#docker-compose)
-  * [Command line](#command-line)
-* [Notes](#notes)
-  * [XMLRPC through nginx](#xmlrpc-through-nginx)
-  * [WebDAV](#webdav)
-  * [Populate .htpasswd files](#populate-htpasswd-files)
-  * [Bootstrap config `.rtlocal.rc`](#bootstrap-config-rtlocalrc)
-  * [Override or add a ruTorrent plugin/theme](#override-or-add-a-rutorrent-plugintheme)
-  * [Edit a ruTorrent plugin configuration](#edit-a-rutorrent-plugin-configuration)
-  * [Increase Docker timeout to allow rTorrent to shutdown gracefully](#increase-docker-timeout-to-allow-rtorrent-to-shutdown-gracefully)
-  * [WAN IP address](#wan-ip-address)
-  * [Configure rTorrent session saving](#configure-rtorrent-session-saving)
-  * [Configure rTorrent tracker scrape](#rtorrent-tracker-scrape-patch)
-* [Upgrade](#upgrade)
-* [Contributing](#contributing)
-* [License](#license)
-
-## Features
-
-* Run as non-root user
-* Multi-platform image
-* Latest [rTorrent](https://github.com/rakshasa/rtorrent) / [libTorrent](https://github.com/rakshasa/libtorrent) release compiled from source
-  * Includes [rTorrent patches](./patches/rtorrent) to increase software stability
-  * Includes [libtorrent patches](./patches/libtorrent) to increase software stability
-* Latest [ruTorrent](https://github.com/Novik/ruTorrent) release
-* Domain name resolving enhancements with [c-ares](https://github.com/rakshasa/rtorrent/wiki/Performance-Tuning#rtrorrent-with-c-ares) and [UDNS](https://www.corpit.ru/mjt/udns.html) for asynchronous DNS requests
-* Enhanced [rTorrent config](rootfs/tpls/.rtorrent.rc) and bootstraping with a [local config](rootfs/tpls/etc/rtorrent/.rtlocal.rc)
-* XMLRPC through nginx over SCGI socket (basic auth optional)
-* WebDAV on completed downloads (basic auth optional)
-* Ability to add a custom ruTorrent plugin / theme
-* Allow persisting specific configuration for ruTorrent plugins
-* ruTorrent [GeoIP2 plugin](https://github.com/Micdu70/geoip2-rutorrent)
-* [mktorrent](https://github.com/Rudde/mktorrent) installed for ruTorrent create plugin
-* [Traefik](https://github.com/containous/traefik-library-image) Docker image as reverse proxy and creation/renewal of Let's Encrypt certificates (see [this template](examples/traefik))
-* [geoip-updater](https://github.com/crazy-max/geoip-updater) Docker image to download MaxMind's GeoIP2 databases on a time-based schedule for geolocation
-
-## Build locally
-
-```shell
-git clone https://github.com/crazy-max/docker-rtorrent-rutorrent.git
-cd docker-rtorrent-rutorrent
-
-# Build image and output to docker (default)
-docker buildx bake
-
-# Build image
-docker buildx bake image
-
-# Build multi-platform image
-docker buildx bake image-all
+```bash
+repo.cylo.net/rutorrent:5.3.14-0.16.23-1
 ```
 
-## Image
+## Current Versions
 
-| Registry                                                                                                      | Image                                   |
-|---------------------------------------------------------------------------------------------------------------|-----------------------------------------|
-| [Docker Hub](https://hub.docker.com/r/crazymax/rtorrent-rutorrent/)                                           | `crazymax/rtorrent-rutorrent`           |
-| [GitHub Container Registry](https://github.com/users/crazy-max/packages/container/package/rtorrent-rutorrent) | `ghcr.io/crazy-max/rtorrent-rutorrent`  |
+- Alpine `3.24`
+- rTorrent `0.16.23`
+- libtorrent `0.16.23`
+- ruTorrent `5.3.14`
+- c-ares `1.34.8`
+- curl `8.22.0`
+- mktorrent `1.1`
+- DumpTorrent `1.7.0`
+- autodl-irssi `2.6.2`
+- PHP `8.5`
 
-Following platforms for this image are available:
+## What This Fork Adds
 
-```
-$ docker run --rm mplatform/mquery crazymax/rtorrent-rutorrent:latest
-Image: crazymax/rtorrent-rutorrent:latest
- * Manifest List: Yes
- * Supported platforms:
-   - linux/amd64
-   - linux/arm/v6
-   - linux/arm/v7
-   - linux/arm64
-```
+- Appbox metadata in `appbox.yml`.
+- Appbox password setup and recovery through `/moduser.sh`.
+- Appbox installed callback from `rootfs/etc/cont-init.d/05-appbox.sh`.
+- Compatibility with the previous Appbox `/torrents` data layout.
+- Bundled `mobile/` plugin with Appbox-style light/dark UI, search, details cards, add flow, directory browser, and create-torrent support.
+- Bundled `autodl-irssi` and `autodl-rutorrent`, with compatibility patches applied at build time and again on boot.
+- Bundled `geoip2`, `filemanager`, `filemanager-media`, and `filemanager-share`.
+- WebDAV listener for completed downloads.
+- `rtcheck` service restored from the previous Appbox image.
+- Appbox dashboard-inspired `appbox` ruTorrent theme, plus the previous `club-QuickBox` theme.
 
-## Environment variables
+## Runtime Layout
 
-### General
+This image intentionally uses the previous Appbox paths:
 
-* `TZ`: The timezone assigned to the container (default `UTC`)
-* `PUID`: rTorrent user id (default `1000`)
-* `PGID`: rTorrent group id (default `1000`)
-* `WAN_IP`: [Public IP address](#wan-ip-address) reported to the tracker (auto if empty)
-* `WAN_IP_CMD`: Command to resolve the [Public IP address](#wan-ip-address)
-* `MEMORY_LIMIT`: PHP memory limit (default `256M`)
-* `UPLOAD_MAX_SIZE`: Upload max size (default `16M`)
-* `CLEAR_ENV`: Clear environment in FPM workers (default `yes`)
-* `OPCACHE_MEM_SIZE`: PHP OpCache memory consumption (default `128`)
-* `MAX_FILE_UPLOADS`: The maximum number of files allowed to be uploaded simultaneously (default `50`)
-* `AUTH_DELAY`: The time in seconds to wait for Basic Auth (default `0s`)
-* `REAL_IP_FROM`: Trusted addresses that are known to send correct replacement addresses (default `0.0.0.0/32`)
-* `REAL_IP_HEADER`: Request header field whose value will be used to replace the client address (default `X-Forwarded-For`)
-* `LOG_IP_VAR`: Use another variable to retrieve the remote IP address for access [log_format](http://nginx.org/en/docs/http/ngx_http_log_module.html#log_format) on Nginx. (default `remote_addr`)
-* `LOG_ACCESS`: Output access log (default `true`)
-* `XMLRPC_AUTHBASIC_STRING`: Message displayed during validation of XMLRPC Basic Auth (default `rTorrent XMLRPC restricted access`)
-* `XMLRPC_PORT`: XMLRPC port through nginx over SCGI socket (default `8000`)
-* `XMLRPC_SIZE_LIMIT`: Maximum body size of XMLRPC calls (default `1M`)
-* `RUTORRENT_AUTHBASIC_STRING`: Message displayed during validation of ruTorrent Basic Auth (default `ruTorrent restricted access`)
-* `RUTORRENT_PORT`: ruTorrent HTTP port (default `8080`)
-* `WEBDAV_AUTHBASIC_STRING`: Message displayed during validation of WebDAV Basic Auth (default `WebDAV restricted access`)
-* `WEBDAV_PORT`: WebDAV port on completed downloads (default `9000`)
+- `/torrents/config/rtorrent` - rTorrent config, logs, and session data.
+- `/torrents/config/rutorrent` - ruTorrent config, plugin config, themes, user settings, and uploaded torrent files.
+- `/torrents/config/autodl` - persisted autodl-irssi config.
+- `/torrents/completed` - completed downloads.
+- `/torrents/downloading` - active downloads.
+- `/torrents/watch` - watch directory.
+- `/passwd` - `rutorrent.htpasswd`, `rpc.htpasswd`, and `webdav.htpasswd`.
 
-### rTorrent
-
-* `RT_LOG_LEVEL`: rTorrent log level (default `info`)
-* `RT_LOG_EXECUTE`: Log executed commands to `/data/rtorrent/log/execute.log` (default `false`)
-* `RT_LOG_XMLRPC`: Log XMLRPC queries to `/data/rtorrent/log/xmlrpc.log` (default `false`)
-* `RT_SESSION_SAVE_SECONDS`: Seconds between writing torrent information to disk (default `3600`)
-* `RT_TRACKER_DELAY_SCRAPE`: Delay tracker announces at startup (default `true`)
-* `RT_DHT_PORT`: DHT UDP port (`dht.port.set`, default `6881`)
-* `RT_INC_PORT`: Incoming connections (`network.port_range.set`, default `50000`)
-
-### ruTorrent
-
-* `RU_REMOVE_CORE_PLUGINS`: Comma separated list of core plugins to remove ; set to `false` to disable removal (default `httprpc`)
-* `RU_HTTP_USER_AGENT`: ruTorrent HTTP user agent (default `Mozilla/5.0 (Windows NT 6.0; WOW64; rv:12.0) Gecko/20100101 Firefox/12.0`)
-* `RU_HTTP_TIME_OUT`: ruTorrent HTTP timeout in seconds (default `30`)
-* `RU_HTTP_USE_GZIP`: Use HTTP Gzip compression (default `true`)
-* `RU_RPC_TIME_OUT`: ruTorrent RPC timeout in seconds (default `5`)
-* `RU_LOG_RPC_CALLS`: Log ruTorrent RPC calls (default `false`)
-* `RU_LOG_RPC_FAULTS`: Log ruTorrent RPC faults (default `true`)
-* `RU_PHP_USE_GZIP`: Use PHP Gzip compression (default `false`)
-* `RU_PHP_GZIP_LEVEL`: PHP Gzip compression level (default `2`)
-* `RU_SCHEDULE_RAND`: Rand for schedulers start, +0..X seconds (default `10`)
-* `RU_LOG_FILE`: ruTorrent log file path for errors messages (default `/data/rutorrent/rutorrent.log`)
-* `RU_DO_DIAGNOSTIC`: ruTorrent diagnostics like permission checking (default `true`)
-* `RU_CACHED_PLUGIN_LOADING`: Set to `true` to enable rapid cached loading of ruTorrent plugins (default `false`)
-* `RU_SAVE_UPLOADED_TORRENTS`: Save torrents files added wia ruTorrent in `/data/rutorrent/share/torrents` (default `true`)
-* `RU_OVERWRITE_UPLOADED_TORRENTS`: Existing .torrent files will be overwritten (default `false`)
-* `RU_FORBID_USER_SETTINGS`: If true, allows for single user style configuration, even with webauth (default `false`)
-* `RU_LOCALE`: Set default locale for ruTorrent (default `UTF8`)
-
-## Volumes
-
-* `/data`: rTorrent / ruTorrent config, session files, log, ...
-* `/downloads`: Downloaded files
-* `/passwd`: Contains htpasswd files for basic auth
-
-> :warning: Note that the volumes should be owned by the user/group with the specified `PUID` and `PGID`. If you don't
-> give the volumes correct permissions, the container may not start.
+The Dockerfile still declares upstream-style `VOLUME [ "/data", "/downloads", "/passwd" ]`,
+but the Appbox runtime and templates use `/torrents` and `/passwd`. Do not switch the
+runtime paths back to `/data` or `/downloads` unless you are intentionally breaking
+compatibility with existing Appbox installs.
 
 ## Ports
 
-* `6881` (or `RT_DHT_PORT`): DHT UDP port (`dht.port.set`)
-* `8000` (or `XMLRPC_PORT`): XMLRPC port through nginx over SCGI socket
-* `8080` (or `RUTORRENT_PORT`): ruTorrent HTTP port
-* `9000` (or `WEBDAV_PORT`): WebDAV port on completed downloads
-* `50000` (or `RT_INC_PORT`): Incoming connections (`network.port_range.set`)
+Only port `80/tcp` is exposed by the image for Appbox reverse proxying.
 
-> :warning: Port p+1 defined for `XMLRPC_PORT`, `RUTORRENT_PORT` and `WEBDAV_PORT` will also be reserved for
-> healthcheck. (e.g. if you define `RUTORRENT_PORT=8080`, port `8081` will be reserved)
+Internally nginx also configures:
 
-## Usage
+- ruTorrent HTTP on `RUTORRENT_PORT` default `80`.
+- XML-RPC on `/RPC2` in the ruTorrent server block.
+- separate XML-RPC listener on `XMLRPC_PORT` default `8000`.
+- WebDAV on `WEBDAV_PORT` default `9000`, rooted at `/torrents/completed`.
+- localhost health listeners on the next ports: `8001`, `81`, and `9001` by default.
 
-### Docker Compose
+For Appbox, HTTP is reverse-proxied through the platform. Do not publish the web UI as
+an explicit public app port in `appbox.yml`.
 
-Docker compose is the recommended way to run this image. Copy the content of
-folder [examples/compose](examples/compose) in `/var/rtorrent-rutorrent/` on
-your host for example. Edit the compose file with your preferences and run the
-following command:
+## Credentials
 
-```shell
-mkdir data downloads passwd
-chown ${PUID}:${PGID} data downloads passwd
-docker compose up -d
-docker compose logs -f
+Initial credentials come from Appbox fields:
+
+- `USERNAME`
+- `PASSWORD`
+
+The scripts also accept the upstream-style names:
+
+- `RUTORRENT_USER`
+- `RUTORRENT_PASSWORD`
+
+`00-set-passwd.sh`, `025-set-passwd.sh`, and `/moduser.sh` all use
+`/usr/local/lib/rtorrent-web-auth.sh`, which writes the same bcrypt htpasswd entry to:
+
+- `/passwd/rutorrent.htpasswd`
+- `/passwd/rpc.htpasswd`
+- `/passwd/webdav.htpasswd`
+
+Password recovery:
+
+```bash
+docker exec <container> /moduser.sh 'NewComplexPassword123!'
 ```
 
-### Command line
+## Appbox Lifecycle
 
-You can also use the following minimal command:
+The image uses s6-overlay and keeps `ENTRYPOINT ["/init"]`.
 
-```shell
-mkdir data downloads passwd
-chown ${PUID}:${PGID} data downloads passwd
-docker run -d --name rtorrent_rutorrent \
-  --ulimit nproc=65535 \
-  --ulimit nofile=32000:40000 \
-  -p 6881:6881/udp \
-  -p 8000:8000 \
-  -p 8080:8080 \
-  -p 9000:9000 \
-  -p 50000:50000 \
-  -v $(pwd)/data:/data \
-  -v $(pwd)/downloads:/downloads \
-  -v $(pwd)/passwd:/passwd \
-  crazymax/rtorrent-rutorrent:latest
+Boot-time setup is handled by `rootfs/etc/cont-init.d/`:
+
+- `00-set-passwd.sh` writes initial basic-auth files when credentials are provided.
+- `03-config.sh` renders PHP, nginx, rTorrent, and ruTorrent config; creates `/torrents` directories; enables the mobile plugin; configures the create plugin; applies custom plugins/themes; patches autodl-rutorrent.
+- `05-appbox.sh` handles upgrade compatibility, autodl migration, user settings migration, irssi and rtcheck services, filemanager-share endpoint setup, and Appbox callback.
+
+When `INSTANCE_ID` is set, `05-appbox.sh` posts to:
+
+```text
+https://api.cylo.net/v1/apps/installed/${INSTANCE_ID}
 ```
 
-## Notes
+Set `SKIP_APPBOX_CALLBACK=1` for local smoke tests. `CALLBACK_TOKEN` is supported if
+the app record requires callback authentication.
 
-### XMLRPC through nginx
+## Bundled Plugins
 
-rTorrent 0.9.7+ has a built-in daemon mode disabling the user interface, so you
-can only control it via XMLRPC. Nginx will route XMLRPC requests to rtorrent
-through port `8000`. These requests can be secured with basic authentication
-through the `/passwd/rpc.htpasswd` file in which you will need to add a username
-with his password. See below to populate this file with a user / password.
+The image keeps the upstream ruTorrent plugin set and adds or configures:
 
-### WebDAV
+- `mobile`
+- `geoip2`
+- `autodl-rutorrent`
+- `filemanager`
+- `filemanager-media`
+- `filemanager-share`
+- `theme` with `appbox` as the default and `club-QuickBox` still bundled
+- `create` configured to use `/usr/local/bin/mktorrent`
 
-WebDAV allows you to retrieve your completed torrent files in `/downloads/complete`
-on port `9000`. Like XMLRPC, these requests can be secured with basic authentication
-through the `/passwd/webdav.htpasswd` file in which you will need to add a
-username with his password. See below to populate this file with a user / password.
+`03-config.sh` changes existing persisted `plugins.ini` files from
+`enabled = user-defined` to `enabled = yes` under `[default]` so bundled plugins remain
+available after upgrades. It also ensures `[mobile] enabled = yes` exists.
 
-### Populate .htpasswd files
+Custom plugins can be placed under:
 
-For ruTorrent basic auth, XMLRPC through nginx and WebDAV on completed downloads,
-you can populate `.htpasswd` files with the following command:
-
-```
-docker run --rm -it httpd:2.4-alpine htpasswd -Bbn <username> <password> >> $(pwd)/passwd/webdav.htpasswd
-```
-
-Htpasswd files used:
-
-* `rpc.htpasswd`: XMLRPC through nginx
-* `rutorrent.htpasswd`: ruTorrent basic auth
-* `webdav.htpasswd`: WebDAV on completed downloads
-
-### Bootstrap config `.rtlocal.rc`
-
-When rTorrent is started the bootstrap config [/etc/rtorrent/.rtlocal.rc](rootfs/tpls/etc/rtorrent/.rtlocal.rc)
-is imported. This configuration cannot be changed unless you rebuild the image
-or overwrite these elements in your `.rtorrent.rc`. Here are the particular
-properties of this file:
-
-* `system.daemon.set = true`: Launcher rTorrent as a daemon
-* A config layout for the rTorrent's instance you can use in your `.rtorrent.rc`:
-  * `cfg.basedir`: Home directory of rtorrent (`/data/rtorrent/`)
-  * `cfg.download`: Download directory (`/downloads/`)
-  * `cfg.download_complete`: Completed downloads (`/downloads/complete/`)
-  * `cfg.download_temp`:  Downloads in progress (`/downloads/temp/`)
-  * `cfg.logs`: Logs directory (`/data/rtorrent/log/`)
-  * `cfg.session`: Session directory (`/data/rtorrent/.session/`)
-  * `cfg.watch`: Watch directory for torrents (`/data/rtorrent/watch/`)
-  * `cfg.rundir`: Runtime data of rtorrent (`/var/run/rtorrent/`)
-* `d.data_path`: Config var to get the full path of data of a torrent (workaround for the possibly empty `d.base_path` attribute)
-* `directory.default.set`: Default directory to save the downloaded torrents (`cfg.download_temp`)
-* `session.path.set`: Default session directory (`cfg.session`)
-* PID file to `/var/run/rtorrent/rtorrent.pid`
-* `network.scgi.open_local`: SCGI local socket and make it group-writable and secure
-* `network.port_range.set`: Listening port for incoming peer traffic (`50000-50000`)
-* `dht.port.set`: UDP port to use for DHT (`6881`)
-* `log.open_file`: Default logging to `/data/rtorrent/log/rtorrent.log`
-  * Log level can be modified with the environment variable `RT_LOG_LEVEL`
-  * `rpc_events` are logged be default
-  * To log executed commands, add the environment variable `RT_LOG_EXECUTE`
-  * To log XMLRPC queries, add the environment variable `RT_LOG_XMLRPC`
-
-### Override or add a ruTorrent plugin/theme
-
-You can add a plugin for ruTorrent in `/data/rutorrent/plugins/`. If you add a
-plugin that already exists in ruTorrent, it will be removed from ruTorrent core
-plugins and yours will be used. And you can also add a theme in `/data/rutorrent/themes/`.
-The same principle as for plugins will be used if you want to override one.
-
-> :warning: Container has to be restarted to propagate changes
-
-### Edit a ruTorrent plugin configuration
-
-As you probably know, plugin configuration is not outsourced in ruTorrent.
-Loading the configuration of a plugin is done via a `conf.php` file placed at
-the root of the plugin folder. To solve this issue with Docker, a special folder
-has been created in `/data/rutorrent/plugins-conf` to allow you to configure
-plugins. For example to configure the `diskspace` plugin, you will need to create
-the `/data/rutorrent/plugins-conf/diskspace.php` file with your configuration:
-
-```php
-<?php
-
-$diskUpdateInterval = 10;	// in seconds
-$notifySpaceLimit = 512;	// in Mb
-$partitionDirectory = null;	// if null, then we will check rtorrent download directory (or $topDirectory if rtorrent is unavailable)
-				// otherwise, set this to the absolute path for checked partition. 
+```text
+/torrents/config/rutorrent/plugins/<plugin-name>
 ```
 
-> :warning: Container has to be restarted to propagate changes
+Custom plugin `conf.php` files can be placed under:
 
-### Increase Docker timeout to allow rTorrent to shutdown gracefully
-
-After issuing a shutdown command, Docker waits 10 seconds for the container to
-exit before it is killed.  If you are a seeding many torrents, rTorrent may be
-unable to gracefully close within that time period.  As a result, rTorrent is
-closed forcefully and the lockfile isn't removed. This stale lockfile will
-prevent rTorrent from restarting until the lockfile is removed manually.
-
-The timeout period can be extended by either adding the parameter `-t XX` to
-the docker command or `stop_grace_period: XXs` in `compose.yml`, where
-`XX` is the number of seconds to wait for a graceful shutdown.
-
-### WAN IP address
-
-`WAN_IP` is the public IP address sent to the tracker. In the majority of cases
-you don't need to set it as it will be automatically determined by the tracker.  
-
-But it can be sometimes required to enforce the public IP address when you
-are behind a VPN where an erroneous IP is sometimes reported.
-
-You can also use the `WAN_IP_CMD` environment variable to specify a command to
-resolve your public IP address. Here are some commands you can use:
-
-* `dig +short myip.opendns.com @resolver1.opendns.com`
-* `curl -s ifconfig.me`
-* `curl -s ident.me` 
-
-### Configure rTorrent session saving
-
-`RT_SESSION_SAVE_SECONDS` is the seconds between writing torrent information to disk.
-The default is 3600 seconds which equals 1 hour. rTorrent has a bad default of 20 minutes.
-Twenty minutes is bad for the lifespan of SSDs and greatly reduces torrent throughput.
-
-It is no longer possible to lose torrents added through ruTorrent on this docker container.
-Only torrent statistics are lost during a crash. (Ratio, Total Uploaded & Downloaded etc.)
-
-Higher values will reduce disk usage, at the cost of minor stat loss during a crash.
-Consider increasing to 10800 seconds (3 hours) if running thousands of torrents.
-
-### rTorrent tracker scrape patch
-
-`RT_TRACKER_DELAY_SCRAPE` specifies whether to delay tracker announces at rTorrent startup.
-The default value is `true`. There are two main benefits to keeping this feature enabled:
-
-1) Software Stability: rTorrent will not crash or time-out with tens of thousands of trackers.
-2) Immediate Access: ruTorrent can be accessed immediately after rTorrent is started.
-
-## Upgrade
-
-To upgrade, pull the newer image and launch the container:
-
-```shell
-docker compose pull
-docker compose up -d
+```text
+/torrents/config/rutorrent/plugins-conf/<plugin-name>.php
 ```
 
-## Contributing
+Custom themes can be placed under:
 
-Want to contribute? Awesome! The most basic way to show your support is to star
-the project, or to raise issues. You can also support this project by [**becoming a sponsor on GitHub**](https://github.com/sponsors/crazy-max)
-or by making a [PayPal donation](https://www.paypal.me/crazyws) to ensure this
-journey continues indefinitely!
+```text
+/torrents/config/rutorrent/themes/<theme-name>
+```
 
-Thanks again for your support, it is much appreciated! :pray:
+The bundled `appbox` theme lives at:
 
-## License
+```text
+/var/www/rutorrent/plugins/theme/themes/appbox
+```
 
-MIT. See `LICENSE` for more details.
+Its editable Tailwind source is `styles/appbox-input.css`; rebuild the runtime
+`style.css` / `style-min.css` files after changing it.
+
+## Mobile Plugin
+
+The mobile UI is vendored in `mobile/` and copied to:
+
+```text
+/var/www/rutorrent/plugins/mobile
+```
+
+Key features:
+
+- Appbox-style card/header layout.
+- Light/dark theme toggle.
+- Inline torrent search.
+- Floating status, labels, and trackers filters.
+- Improved add-torrent and directory browser flows for ruTorrent 5.x.
+- Create-torrent page using the ruTorrent `create` plugin.
+- Details tabs styled for mobile.
+
+CSS is generated with Tailwind v4:
+
+```bash
+cd mobile
+npm install
+npm run build:css
+```
+
+Commit `mobile/appbox.css` after changing `mobile/styles/appbox-input.css`, markup that
+uses generated classes, or JS-rendered class names.
+
+## Upgrade Notes
+
+This repo preserves previous Appbox behavior while moving to current rTorrent and
+ruTorrent versions.
+
+On old Appbox installs, `05-appbox.sh` detects old config and user setting paths,
+creates compatibility symlinks for `session` and `.session`, migrates autodl config to
+`/torrents/config/autodl`, and warns that older torrents may need their download
+directory reset to `/torrents/completed` followed by a force recheck.
+
+Do not remove the migration logic unless you have explicitly decided to stop supporting
+existing Appbox installs.
+
+## Build
+
+Production builds target `linux/amd64`.
+
+Local build:
+
+```bash
+docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.14-0.16.23-1 .
+```
+
+Remote builder currently used for release builds:
+
+```bash
+tar -C "/Users/rid/Development/Current/docker-rtorrent-rutorrent" \
+  --exclude='.git' \
+  --exclude='mobile/node_modules' \
+  --exclude='rootfs/usr/local/bin/__pycache__' \
+  -czf - . | \
+ssh appbox@builder.tester2.appboxes.co -p12246 \
+  -i /Users/rid/.ssh/appbox_ubuntuvps2_webtop \
+  -o IdentitiesOnly=yes \
+  "mkdir -p /home/appbox/builds/docker-rtorrent-rutorrent && \
+   tar xzf - -C /home/appbox/builds/docker-rtorrent-rutorrent && \
+   cd /home/appbox/builds/docker-rtorrent-rutorrent && \
+   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.14-0.16.23-1 . && \
+   docker push repo.cylo.net/rutorrent:5.3.14-0.16.23-1"
+```
+
+Only push a registry tag when the user explicitly asks for it.
+
+## Local Smoke Test
+
+```bash
+docker run --rm --platform linux/amd64 \
+  -e USERNAME=admin \
+  -e PASSWORD='TestPass123!' \
+  -e INSTANCE_ID=test \
+  -e SKIP_APPBOX_CALLBACK=1 \
+  -p 8080:80 \
+  -v rutorrent-torrents:/torrents \
+  -v rutorrent-passwd:/passwd \
+  repo.cylo.net/rutorrent:5.3.14-0.16.23-1
+```
+
+Open `http://localhost:8080/` and sign in with the provided credentials. Force mobile
+mode with `http://localhost:8080/index.html?mobile=1`.
+
+## Important Files
+
+- `Dockerfile` - upstream build plus Appbox additions.
+- `appbox.yml` - Appbox store metadata.
+- `mobile/` - vendored mobile plugin.
+- `scripts/patch-autodl-rutorrent-html5.py` - autodl-rutorrent compatibility patcher.
+- `rootfs/etc/cont-init.d/03-config.sh` - main runtime config renderer.
+- `rootfs/etc/cont-init.d/05-appbox.sh` - Appbox lifecycle and migration logic.
+- `rootfs/usr/local/lib/rtorrent-web-auth.sh` - shared auth writer.
+- `rootfs/moduser.sh` - Appbox password recovery.
+
+## Watch-folder compatibility (5.3.12-0.16.10-1)
+
+ruTorrent AutoWatch owns the default /torrents/watch import path. The image no
+longer registers a competing native directory watcher or a stop_untied timer.
+AutoWatch removes source .torrent files after importing them, so those native
+rules could immediately pause the downloads they had loaded.
+
+The default AutoWatch interval is five minutes, so imports can take up to five
+minutes to appear.
+
+For containers that are already configured, startup removes only the two former
+stock rules from the retained .rtorrent.rc and saves a content-addressed
+.pre-autowatch backup before modifying it.
+Other rules and settings are left intact by this migration. It does not change
+torrent states or remove downloaded data; previously stopped torrents can be
+started after updating. Fresh install, restart, configured-state migration and
+upgrade checks live in scripts/release-gate.py.
+
+## Package refresh: 5.3.14-0.16.22
+
+This release packages ruTorrent 5.3.14, rTorrent/libtorrent 0.16.22, Alpine 3.24,
+s6-overlay 3.2.3.0, PHP 8.5, curl 8.22.0, c-ares 1.34.8, gosu 1.19,
+GeoIP2 3.4.0 and Tailwind 4.3.3. RAR and UnRAR use stable 7.23; the UnRAR
+source archive is named 7.2.7. The bundled RAR binary comes from RARLab
+`rarlinux-x64-723.tar.gz` (binary SHA-256
+`56c3c4fd46faa7a9f52264d30cb96813e19ec7c4587d9f18424d7e909cf78555`).
+
+Normal version upgrades preserve the existing rTorrent config and selected theme.
+The former legacy-Appbox layout conversion remains in place.
+
+Startup backs up the retained rTorrent configuration before removing the former
+stock `encoding.add = UTF-8` directive, which newer rTorrent no longer supports.
+The generated DHT setting uses `dht.override_port.set`; persisted settings,
+torrent sessions, authentication and the existing AutoWatch fix remain covered
+by the release gate.
+
+Published on 2026-09-14 as catalog version **1316** for app **66** (enabled/default).
+The immutable registry reference is recorded in `appbox.yml`.
+
+The dedicated-builder release gate passed fresh install, plugin initialization,
+web/watch imports, restart persistence, upgrade from catalog version 1308,
+configuration backup and custom-setting/theme retention, authentication,
+installation callbacks, package versions, and a 1 MiB private torrent transfer
+with SHA-256 verification. Catalog publication does not update existing instances.
+
+## Preallocation correction: 5.3.14-0.16.22-1
+
+The Appbox catalogue now supplies `RT_PREALLOCATE_TYPE=1`. Startup converts the
+legacy value `2` to `1`; both enabled the same per-file allocation behavior.
+`0` remains disabled, and saved `.rtorrent.rc` overrides are preserved. This does
+not reserve the entire torrent immediately. Standalone containers still default
+to `0` unless the environment variable is supplied.
+
+Before publishing this release, run on the dedicated builder:
+
+```sh
+python3 scripts/preallocation-release-gate.py repo.cylo.net/rutorrent:5.3.14-0.16.22-1
+```
+
+## Session persistence: 5.3.14-0.16.22-2
+
+Session snapshots run after the first minute and every five minutes afterwards.
+The app-owned `appbox_session_save` timer is separate from custom `session_save`
+timers. The former 3,600/10,800-second environment defaults migrate to 300 seconds;
+other explicit intervals and saved `.rtorrent.rc` files are preserved.
+
+rTorrent receives SIGINT during an orderly container stop, with up to 25 seconds
+for supervised services to exit. A shutdown hook queues the latest session state
+before network cleanup. Use a Docker stop timeout of at least 30 seconds.
+An external SIGKILL bypasses these hooks and can still lose progress since the last
+snapshot; the platform's forced-stop path must also change to prevent that.
+
+The image no longer forces hash checks solely because a torrent has zero completed
+pieces at startup. rTorrent's normal resume validation remains enabled.
+
+Release gate on the dedicated builder:
+
+```sh
+python3 scripts/session-release-gate.py repo.cylo.net/rutorrent:5.3.14-0.16.22-3
+```
+
+## Network compatibility: 5.3.14-0.16.22-3
+
+The image patches both ruTorrent command maps (PHP and JavaScript) so the DHT
+port setting uses `dht.override_port.set` on rTorrent 0.16.x. The former
+`dht.port.set` command accepts the request but does nothing. The getter remains
+`dht.port`, which reports the actual listener. Startup still selects the
+platform-assigned UDP port through `RT_DHT_PORT`; changes made in ruTorrent do
+not alter Docker's port forwarding or replace that assigned port on restart.
+
+`RT_SEND_BUFFER_SIZE` and `RT_RECEIVE_BUFFER_SIZE` now default to `0` in both
+startup and the manifest, allowing kernel TCP autotuning. Explicit nonzero
+environment values remain supported. The next catalogue import must include
+the manifest's zero values so the former 64M catalogue defaults are replaced.
+
+The managed config uses the current schedule, execution and listening-port
+commands. It relies on rTorrent's built-in insertion save handler instead of
+the ineffective two-argument `method.set_key` rule. Persistent custom configs
+are retained, and the launcher keeps `-D` for their compatibility.
+
+`scripts/network-test-in-container.py` exercises the real authenticated
+ruTorrent settings endpoint and checks the kernel UDP listener in disposable
+containers. It also checks zero buffer defaults and preservation of synthetic
+custom settings/data across upgrade and restart. Do not run its mutating modes
+against customer containers.
+
+## PHP compatibility fix: 5.3.14-0.16.23-1
+
+Fixes the misleading `register_argc_argv` warning on PHP 8.5 by testing the PHP
+executable used by plugins. Web PHP keeps the directive off. rTorrent and
+libtorrent remain at 0.16.23, and ruTorrent remains at 5.3.14.
+The DHT port mapping, zero socket-buffer defaults, five-minute session saves,
+graceful shutdown and persisted configuration behavior are retained.
+
+Run the exact-image release gate on the dedicated builder before publishing:
+
+```sh
+python3 scripts/session-release-gate.py repo.cylo.net/rutorrent:5.3.14-0.16.23-1
+```
+
+The upgrade gate starts from the immutable 5.3.14-0.16.22-3 image and verifies
+torrent sessions, custom configuration, authentication and data retention.

@@ -1,0 +1,16 @@
+.git
+**/.git
+**/node_modules
+**/vendor
+**/__pycache__
+**/*.pyc
+**/.DS_Store
+**/.env
+**/*.env
+**/*.pem
+**/*.key
+examples
+test
+.github
+rutorrent-mobile-screenshot.png
+rootfs/etc/cont-init.d/~-*

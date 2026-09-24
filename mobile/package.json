@@ -1,0 +1,11 @@
+{
+  "name": "rutorrent-mobile",
+  "private": true,
+  "scripts": {
+    "build:css": "npx @tailwindcss/cli -i ./styles/appbox-input.css -o ./appbox.css --minify"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "4.3.3",
+    "tailwindcss": "4.3.3"
+  }
+}

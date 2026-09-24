@@ -1,0 +1,564 @@
+<div id="mainContainer">
+  <div id="torrentsList" class="mainContainer">
+    <div id="torrentsTopBar" class="torrentsTopBar hero-collapsed flex w-full flex-col bg-white/95 shadow-sm backdrop-blur">
+      <div class="mobile-hero" aria-label="Appbox">
+        <div class="mobile-hero-row">
+          <div class="mobile-brand">
+            <svg
+              class="mobile-brand-mark"
+              viewBox="0 0 73 77"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <title>Appbox</title>
+              <g fill="currentColor" fill-rule="evenodd">
+                <path
+                  d="M36.4911361,0 L72.967,16.2 L73,16.185117 L73,60.7510445 L69.4960734,62.3109333 L36.50051,77 L36.5,32.465 L0,16.2345491 L36.4911361,0 Z M68.9579651,23.2178295 L42.7565455,34.8885523 L42.7565455,70.2429745 L68.9579651,58.5722517 L68.9579651,45.3143434 L64.5910618,42.8401611 L68.9579651,36.4757378 L68.9579651,23.2178295 Z"
+                />
+                <path
+                  d="M13.6666667,40.1391255 L22.3333333,44.0261215 L22.3333333,39.608745 L13.6666667,35.721749 L13.6666667,40.1391255 Z M31,70 L22.3333333,66.113004 L22.3333333,52.8608745 L13.6666667,48.9738785 L13.6666667,62.2260079 L5,58.3390119 L5,23 L31,34.6609881 L31,70 Z"
+                />
+                <polygon points="61 49 52 52.7453233 52 57 61 53.2546767" />
+                <polygon points="61 36 52 39.7453233 52 44 61 40.2546767" />
+              </g>
+            </svg>
+            <div class="mobile-brand-copy">
+              <div class="mobile-eyebrow">Appbox theme</div>
+              <div class="mobile-page-title">ruTorrent</div>
+            </div>
+          </div>
+          <div class="mobile-hero-aside">
+            <span class="mobile-badge">Live sync</span>
+            <span class="mobile-last-updated" id="lastUpdatedLabel">Waiting for first refresh</span>
+            <button type="button" id="toggleChrome" class="hero-toggle" onclick="mobile.toggleChrome();" aria-expanded="false" title="Show filters and search">
+              <span id="toggleChromeText">Expand</span>
+              <svg id="toggleChromeIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-4" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="heroExpandable" class="hero-expandable">
+          <div class="summary-grid" id="summaryGrid">
+            <button type="button" class="summary-card" id="summaryAllCard" onclick="mobile.filter(mobile.statusFilter.all, this);">
+              <span class="summary-label">All</span>
+              <span class="summary-value" id="summaryAllCount">0</span>
+            </button>
+            <button type="button" class="summary-card" id="summaryDownloadingCard" onclick="mobile.filter(mobile.statusFilter.downloading, this);">
+              <span class="summary-label">Incomplete</span>
+              <span class="summary-value" id="summaryDownloadingCount">0</span>
+            </button>
+            <button type="button" class="summary-card" id="summaryCompletedCard" onclick="mobile.filter(mobile.statusFilter.completed, this);">
+              <span class="summary-label">Finished</span>
+              <span class="summary-value" id="summaryCompletedCount">0</span>
+            </button>
+            <button type="button" class="summary-card" id="summaryActiveCard" onclick="mobile.filter(mobile.statusFilter.active, this);">
+              <span class="summary-label">Active</span>
+              <span class="summary-value" id="summaryActiveCount">0</span>
+            </button>
+          </div>
+
+          <div class="toolbar-row">
+            <label class="search-shell" for="torrentSearch">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-4" aria-hidden="true">
+                <circle cx="11" cy="11" r="8"></circle>
+                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35"></path>
+              </svg>
+              <input id="torrentSearch" type="search" autocomplete="off" placeholder="Search torrents, labels, or tracker errors" />
+            </label>
+            <button type="button" id="clearSearch" class="search-clear" onclick="mobile.clearSearch();" title="Clear search">
+              Clear
+            </button>
+          </div>
+
+          <div class="toolbar-caption">
+            <span id="visibleTorrentCount">0 torrents visible</span>
+          </div>
+        </div>
+      </div>
+
+      <ul class="nav nav-tabs">
+        <li id="torrentsStatus" class="dropdown">
+          <a href="javascript://void();" class="dropdown-toggle" data-toggle="dropdown"
+            ><span></span><b class="caret"></b
+          ></a>
+          <ul class="dropdown-menu pull-left">
+            <li id="torrentsAll">
+              <a href="javascript://void();" onclick="mobile.filter(mobile.statusFilter.all, this);"></a>
+            </li>
+            <li id="torrentsDownloading">
+              <a href="javascript://void();" onclick="mobile.filter(mobile.statusFilter.downloading, this);"></a>
+            </li>
+            <li id="torrentsCompleted">
+              <a href="javascript://void();" onclick="mobile.filter(mobile.statusFilter.completed, this);"></a>
+            </li>
+            <li id="torrentsActive">
+              <a href="javascript://void();" onclick="mobile.filter(mobile.statusFilter.active, this);"></a>
+            </li>
+            <li id="torrentsInactive">
+              <a href="javascript://void();" onclick="mobile.filter(mobile.statusFilter.inactive, this);"></a>
+            </li>
+            <li id="torrentsError">
+              <a href="javascript://void();" onclick="mobile.filter(mobile.statusFilter.error, this);"></a>
+            </li>
+          </ul>
+        </li>
+        <li id="torrentsLabels" class="dropdown">
+          <a href="javascript://void();" class="dropdown-toggle" data-toggle="dropdown"
+            ><span></span><b class="caret"></b
+          ></a>
+          <ul class="dropdown-menu pull-left"></ul>
+        </li>
+        <li id="torrentsTrackers" class="dropdown">
+          <a href="javascript://void();" class="dropdown-toggle" data-toggle="dropdown"
+            ><span></span><b class="caret"></b
+          ></a>
+          <ul class="dropdown-menu pull-right"></ul>
+        </li>
+        <li id="sort">
+          <a id="sortIcon" href="javascript://void();" onclick="mobile.showSort();" title="Sort">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+            </svg>
+          </a>
+        </li>
+        <li id="refresh">
+          <a id="refreshIcon" href="javascript://void();" onclick="mobile.refresh();" title="Refresh">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="page-shell">
+      <div id="listState" class="page-card list-state" style="display:none;">
+        <div class="empty-state-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 19h8a2 2 0 0 0 2-2V7.414a2 2 0 0 0-.586-1.414l-2.414-2.414A2 2 0 0 0 13.586 3H8a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2Z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M14 3v4h4" />
+          </svg>
+        </div>
+        <h3 id="listStateTitle" class="empty-state-title">Loading torrents</h3>
+        <p id="listStateCopy" class="empty-state-copy">Fetching the latest transfers from ruTorrent.</p>
+      </div>
+
+      <div id="list" class="page-card list-card">
+        <table class="table table-striped">
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="mainContainer page-shell" id="torrentDetails" style="display:none;">
+    <div id="torrentDetailsHeader" class="page-card">
+      <div class="section-header compact">
+        <div>
+          <div class="mobile-eyebrow">Torrent details</div>
+          <h5 id="torrentName"></h5>
+          <p id="torrentHeaderMessage" class="page-copy">Inspect status, files, peers, and trackers.</p>
+        </div>
+      </div>
+      <div class="detail-chip-grid">
+        <div class="detail-chip">
+          <span>Status</span>
+          <strong id="torrentHeaderStatus">-</strong>
+        </div>
+        <div class="detail-chip">
+          <span>Progress</span>
+          <strong id="torrentHeaderProgressValue">0%</strong>
+        </div>
+        <div class="detail-chip">
+          <span>ETA</span>
+          <strong id="torrentHeaderETAValue">-</strong>
+        </div>
+        <div class="detail-chip">
+          <span>Ratio</span>
+          <strong id="torrentHeaderRatioValue">-</strong>
+        </div>
+      </div>
+      <div class="progress" id="torrentProgress">
+        <div class="progress-bar progress-bar-striped"></div>
+      </div>
+    </div>
+
+    <ul class="nav nav-tabs" id="detailsNav">
+      <li class="active" id="detailsDetailsTab">
+        <a href="javascript://void();" onclick="mobile.showDetailsInDetails();"></a>
+      </li>
+      <li id="detailsTrackers">
+        <a href="javascript://void();" onclick="mobile.showTrackersInDetails();"></a>
+      </li>
+      <li id="detailsFiles">
+        <a href="javascript://void();" onclick="mobile.showFilesInDetails();"></a>
+      </li>
+      <li id="detailsPeers">
+        <a href="javascript://void();" onclick="mobile.showPeersInDetails();"></a>
+      </li>
+    </ul>
+
+    <table class="table table-striped detailsPage" id="detailsDetailsPage">
+      <tbody>
+        <tr id="status"><td></td><td></td></tr>
+        <tr id="priority"><td></td><td><select id="torrentPriority"></select></td></tr>
+        <tr id="label"><td></td><td></td></tr>
+        <tr id="done"><td></td><td></td></tr>
+        <tr id="downloaded"><td></td><td></td></tr>
+        <tr id="size"><td></td><td></td></tr>
+        <tr id="remaining"><td></td><td></td></tr>
+        <tr id="eta"><td></td><td></td></tr>
+        <tr id="uploaded"><td></td><td></td></tr>
+        <tr id="ratio"><td></td><td></td></tr>
+        <tr id="downloadSpeed"><td></td><td></td></tr>
+        <tr id="uploadSpeed"><td></td><td></td></tr>
+        <tr id="timeElapsed"><td></td><td></td></tr>
+        <tr id="created"><td></td><td></td></tr>
+        <tr id="wasted"><td></td><td></td></tr>
+        <tr id="seeds"><td></td><td></td></tr>
+        <tr id="peers"><td></td><td></td></tr>
+        <tr id="savePath"><td></td><td></td></tr>
+        <tr id="comment"><td></td><td></td></tr>
+        <tr id="trackerStatus"><td></td><td></td></tr>
+      </tbody>
+    </table>
+    <div class="detailsPage" id="detailsTrackersPage"></div>
+    <div class="detailsPage" id="detailsFilesPage"></div>
+    <div class="detailsPage" id="detailsPeersPage">
+      <div class="table-responsive tableFixHead">
+        <table class="table table-sm table-striped table-scroll" id="peersTable">
+          <thead>
+            <tr>
+              <th id="address" scope="col"></th>
+              <th id="client" scope="col"></th>
+              <th id="flags" scope="col"></th>
+              <th id="done" scope="col"></th>
+              <th id="downloaded" scope="col"></th>
+              <th id="uploaded" scope="col"></th>
+              <th id="dl" scope="col"></th>
+              <th id="ul" scope="col"></th>
+              <th id="peer_dl" scope="col"></th>
+              <th id="peer_downloaded" scope="col"></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="mainContainer container page-shell form-page" id="torrentSort" style="display:none;">
+    <div class="page-card">
+      <div class="section-header">
+        <div>
+          <div class="mobile-eyebrow">View controls</div>
+          <h2 class="page-heading">Sort torrents</h2>
+          <p class="page-copy">Choose how the mobile list should order current transfers.</p>
+        </div>
+      </div>
+      <div class="page-content">
+        <div class="form-group">
+          <label class="select" for="sortOption"><h5></h5></label>
+          <select id="sortOption" class="form-control"></select>
+          <div class="radio">
+            <label id="sortAsc" class="radio-inline"><input type="radio" name="inlineRadioOptions" id="sort_asc" value="" /></label>
+            <label id="sortDesc" class="radio-inline"><input type="radio" name="inlineRadioOptions" id="sort_desc" value="-" /></label>
+          </div>
+        </div>
+        <div class="action-row">
+          <button id="sortOk" onclick="mobile.setSort();" class="btn btn-primary"></button>
+          <button id="sortCancel" onclick="history.go(-1);" class="btn btn-default"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mainContainer container page-shell form-page" id="globalSettings" style="display:none;">
+    <div class="page-card">
+      <div class="section-header">
+        <div>
+          <div class="mobile-eyebrow">Session settings</div>
+          <h2 class="page-heading">Speed limits</h2>
+          <p class="page-copy">Adjust the global download and upload caps for this ruTorrent session.</p>
+        </div>
+      </div>
+      <div class="page-content">
+        <div class="form-group">
+          <label class="select" for="dlLimit"><h5></h5></label>
+          <select id="dlLimit" class="form-control"></select>
+        </div>
+        <div class="form-group">
+          <label class="select" for="ulLimit"><h5></h5></label>
+          <select id="ulLimit" class="form-control"></select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mainContainer container page-shell form-page" id="addTorrent" style="display:none;">
+    <div class="page-card">
+      <div class="section-header">
+        <div>
+          <div class="mobile-eyebrow">Quick add</div>
+          <h2 class="page-heading">Add a torrent</h2>
+          <p class="page-copy">Upload a `.torrent` file or paste a URL, then review path and startup options.</p>
+        </div>
+        <div class="section-actions">
+          <button type="button" id="openCreateTorrent" class="btn btn-default btn-sm" onclick="mobile.showCreateTorrent();">
+            Create torrent
+          </button>
+        </div>
+      </div>
+      <div class="page-content">
+        <form action="php/addtorrent.php?" id="addTorrentFile" method="post" enctype="multipart/form-data" target="uploadFrame">
+          <div class="input-append" id="dirEditBlock">
+            <input type="text" id="dir_edit" name="dir_edit" class="form-control pull-left" placeholder="Directory" />
+          </div>
+          <div class="checkbox">
+            <label id="notAddPath"><input type="checkbox" name="not_add_path" id="not_add_path" /></label>
+          </div>
+          <div class="checkbox">
+            <label id="startStopped"><input type="checkbox" name="torrents_start_stopped" id="torrents_start_stopped" /></label>
+          </div>
+          <div class="checkbox">
+            <label id="fastResume"><input type="checkbox" name="fast_resume" id="fast_resume" /></label>
+          </div>
+          <div class="checkbox">
+            <label id="randomizeHash"><input type="checkbox" name="randomize_hash" id="randomize_hash" /></label>
+          </div>
+          <input class="form-control" type="text" id="tadd_label" name="tadd_label" placeholder="Label" />
+          <hr class="my-4 border-zinc-200" />
+          <div class="form-group">
+            <div class="control-label mb-1 text-sm font-medium text-zinc-700" id="torrentFile"></div>
+            <label
+              id="torrentFileBrowse"
+              class="mb-2 flex w-full cursor-pointer items-center justify-center rounded-lg border-2 border-indigo-400 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-900 shadow-sm hover:bg-indigo-100 active:bg-indigo-200"
+            >
+              <span id="torrentFileBrowseText">Choose file</span>
+              <input
+                type="file"
+                name="torrent_file"
+                id="torrent_file"
+                accept=".torrent,application/x-bittorrent"
+                class="sr-only"
+              />
+            </label>
+            <p class="mt-1 truncate text-xs text-zinc-600" id="torrentFileChosen"></p>
+          </div>
+          <div class="action-row">
+            <button type="submit" class="btn btn-primary" id="torrentFileSend"></button>
+          </div>
+        </form>
+        <hr class="my-4 border-zinc-200" />
+        <form action="php/addtorrent.php?" id="addTorrentUrl" method="post" target="uploadFrame">
+          <div class="form-group">
+            <input type="url" id="url" name="url" class="form-control" placeholder="Torrent URL" />
+          </div>
+          <div class="action-row">
+            <button type="submit" id="addUrl" class="btn btn-primary"></button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="mainContainer container page-shell form-page" id="createTorrent" style="display:none;">
+    <div class="page-card">
+      <div class="section-header">
+        <div>
+          <div class="mobile-eyebrow">Builder tools</div>
+          <h2 class="page-heading">Create a torrent</h2>
+          <p class="page-copy">Point ruTorrent at an existing file or directory on the server and build a new `.torrent` file.</p>
+        </div>
+        <div class="section-actions">
+          <button type="button" class="btn btn-default btn-sm" onclick="mobile.addTorrent();">
+            Back to add
+          </button>
+        </div>
+      </div>
+
+      <div class="page-content">
+      <form id="createTorrentForm">
+        <div class="form-group">
+          <label class="control-label" for="create_path_edit" id="createPathLabel">Source path</label>
+          <div class="input-append" id="createDirEditBlock">
+            <input type="text" id="create_path_edit" name="path_edit" class="form-control pull-left" placeholder="File or directory to package" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="control-label" for="create_trackers" id="createTrackersLabel">Trackers</label>
+          <textarea id="create_trackers" name="trackers" class="form-control min-h-[7rem]" placeholder="One tracker per line. Blank lines separate tiers."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="control-label" for="create_piece_size" id="createPieceSizeLabel">Piece size</label>
+          <select id="create_piece_size" name="piece_size" class="form-control"></select>
+        </div>
+
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div class="form-group">
+            <label class="control-label" for="create_comment" id="createCommentLabel">Comment</label>
+            <input type="text" id="create_comment" name="comment" class="form-control" placeholder="Optional torrent comment" />
+          </div>
+          <div class="form-group">
+            <label class="control-label" for="create_source" id="createSourceLabel">Source</label>
+            <input type="text" id="create_source" name="source" class="form-control" placeholder="Optional source field" />
+          </div>
+        </div>
+
+        <div class="checkbox-grid">
+          <div class="checkbox">
+            <label id="createPrivateLabel"><input type="checkbox" id="create_private" name="private" /> Private torrent</label>
+          </div>
+          <div class="checkbox">
+            <label id="createStartSeedingLabel"><input type="checkbox" id="create_start_seeding" name="start_seeding" /> Start seeding after create</label>
+          </div>
+          <div class="checkbox">
+            <label id="createHybridLabel"><input type="checkbox" id="create_hybrid" name="hybrid" /> Hybrid torrent</label>
+          </div>
+        </div>
+
+        <div id="createTaskState" class="page-callout page-callout-muted" style="display:none;">
+          <div class="page-callout-title" id="createTaskTitle">Waiting to start</div>
+          <p class="page-callout-copy" id="createTaskCopy">Submit the form to create a torrent from a server-side path.</p>
+          <div class="action-row" id="createTaskActions" style="display:none;">
+            <button type="button" id="createTaskDownload" class="btn btn-primary" onclick="mobile.downloadCreatedTorrent();">Download torrent</button>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button type="submit" id="createTorrentSubmit" class="btn btn-primary">Create torrent</button>
+        </div>
+      </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="mainContainer page-shell" id="getDirList" style="display:none;"></div>
+
+  <div class="mainContainer container page-shell form-page text-center" id="confimTorrentDelete" style="display:none;">
+    <div class="page-card">
+      <div class="section-header centered">
+        <div>
+          <div class="mobile-eyebrow">Danger zone</div>
+          <h2 class="page-heading">Remove torrent</h2>
+          <p class="page-copy">Confirm whether you want to remove the selected torrent from ruTorrent.</p>
+        </div>
+      </div>
+      <div class="page-content">
+        <h5></h5>
+        <div class="action-row centered">
+          <button id="deleteOk" onclick="mobile.deleteConfimed();" class="btn btn-primary"></button>
+          <button id="deleteCancel" onclick="history.go(-1);" class="btn btn-default"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav id="mainNavbar" class="navbar navbar-inverse">
+    <div class="container mx-auto max-w-none px-2">
+      <ul class="nav navbar-inverse flex w-full items-center justify-between gap-1">
+        <li>
+          <a id="navBack" href="javascript://void();" onclick="mobile.showList(); return false;" title="Home">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 10.5 12 3l9 7.5" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 9.5V21h14V9.5" />
+            </svg>
+          </a>
+        </li>
+        <li>
+          <a id="navSettings" href="javascript://void();" onclick="mobile.showSettings();" title="Settings">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </a>
+        </li>
+        <li>
+          <a
+            id="navTheme"
+            href="javascript://void();"
+            onclick="mobile.toggleTheme();"
+            role="button"
+            aria-pressed="false"
+            title="Theme"
+          >
+            <svg id="navThemeIconMoon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+            <svg id="navThemeIconSun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5 hidden" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          </a>
+        </li>
+        <li>
+          <a id="navAdd" href="javascript://void();" onclick="mobile.addTorrent();" title="Add">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </a>
+        </li>
+        <li class="torrentControl divider-vertical" aria-hidden="true"></li>
+        <li class="torrentControl">
+          <a id="torrentRecheck" href="javascript://void();" onclick="mobile.recheck();" title="Recheck">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 1 1-2.64-6.36" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 3v6h-6" />
+            </svg>
+          </a>
+        </li>
+        <li class="torrentControl">
+          <a id="torrentStart" href="javascript://void();" onclick="mobile.start();" title="Start">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5" aria-hidden="true">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </a>
+        </li>
+        <li class="torrentControl">
+          <a id="torrentStop" href="javascript://void();" onclick="mobile.stop();" title="Stop">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5" aria-hidden="true">
+              <path d="M6 6h12v12H6z" />
+            </svg>
+          </a>
+        </li>
+        <li class="torrentControl">
+          <a id="torrentPause" href="javascript://void();" onclick="mobile.pause();" title="Pause">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-5" aria-hidden="true">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+            </svg>
+          </a>
+        </li>
+        <li class="torrentControl">
+          <a id="torrentDelete" href="javascript://void();" onclick="mobile.delete();" title="Delete">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="size-5 text-red-600" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </a>
+        </li>
+        <li id="navSpeed">
+          <div class="mobile-speed-column">
+            <div class="mobile-speed-chip">
+              <span class="mobile-speed-arrow" aria-hidden="true">↑</span>
+              <span id="upspeed"></span>
+            </div>
+            <div class="mobile-speed-chip">
+              <span class="mobile-speed-arrow" aria-hidden="true">↓</span>
+              <span id="downspeed"></span>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
+  <div id="alert_placeholder"></div>
+  <div id="mobileDropdownPortal"></div>
+  <iframe id="createDownloadFrame" name="createDownloadFrame" class="sr-only"></iframe>
+  <form id="createDownloadForm" action="plugins/create/action.php" method="get" target="createDownloadFrame" class="sr-only">
+    <input type="hidden" name="cmd" value="getfile" />
+    <input type="hidden" name="no" id="createDownloadNo" value="" />
+  </form>
+</div>

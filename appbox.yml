@@ -1,0 +1,103 @@
+# Appbox packaging for rTorrent + ruTorrent (see AGENTS.md).
+# Runtime paths match the previous Appbox image: /torrents/* for config/downloads and /passwd for auth.
+
+app:
+  display_name: "rTorrent + ruTorrent"
+  publisher: "crazy-max (image) / Appbox packaging in-repo"
+  description: |
+    rTorrent with ruTorrent web UI and XML-RPC via nginx,
+    DumpTorrent for the ruTorrent dump plugin, plus **autodl-irssi**, **autodl-rutorrent**,
+    and **rtcheck**. Layout matches the previous Appbox image: configuration under
+    `/torrents/config`, completed downloads in `/torrents/completed`, active downloads in
+    `/torrents/downloading`, watch torrents in `/torrents/watch`, and basic-auth files under `/passwd`.
+
+    ## Features
+
+    - rTorrent 0.16 / libtorrent 0.16, ruTorrent 5.x, SCGI/XML-RPC through nginx (tinyxml2)
+    - autodl-irssi + autodl-rutorrent plugin; rtcheck helper service
+    - Persistent `/torrents` and `/passwd` volumes
+    - Password recovery via `/moduser.sh` (Appbox requirement)
+
+    ## Ideal For
+
+    - Private trackers and seedboxes on Appbox
+    - Users who want a ruTorrent + rTorrent stack with XML-RPC for automation
+
+    ## Good to Know
+
+    - Ports, volumes, shared mounts, env vars, install-time fields, and ulimits come from the
+      store app record (version-specific rows when present, otherwise global defaults).
+    - Replace `icon.png` with a 512×512 PNG before store submission if the placeholder is used.
+  short_description: "rTorrent with ruTorrent and XML-RPC in one container"
+  icon: icon.png
+  categories:
+    - "Torrent Clients"
+  devsite: "https://github.com/crazy-max/docker-rtorrent-rutorrent"
+  source_repo: "https://github.com/crazy-max/docker-rtorrent-rutorrent"
+  documentation_url: null
+
+image:
+  name: "rutorrent"
+  version: "5.3.14-0.16.23-1"
+  tag: "5.3.14-0.16.23-1"
+  digest: "repo.cylo.net/rutorrent@sha256:452cf30b6f99f2274750544d379fad50d8ea26adaf19ae473513cac7970b14b9"
+
+container:
+  cmd: null
+  user: null
+  memory: 0
+  memory_swap: 0
+  cpus: 0
+  init: false
+  cap_add: null
+  cap_drop: null
+  shm_size: null
+  pids_limit: null
+
+networking:
+  subdomain: "rtorrent"
+  is_web_app: true
+  requires_domain: true
+  ssl: true
+  multiple_domains: false
+  tcp_passthrough: false
+
+ports:
+  tcp:
+    dynamic: 1
+  udp:
+    dynamic: 1
+
+behavior:
+  app_slots: 1
+  expect_callback: true
+  callback_requires_auth: false
+  restart_text: "Restarting stops rTorrent and active transfers until the container is back up."
+  can_update: true
+  update_text: >-
+    After updating, open ruTorrent and hard-refresh:
+    Chrome/Firefox/Edge: Ctrl+Shift+R (Windows/Linux) or Command+Shift+R (Mac).
+    Safari (Mac): Option+Command+R.
+    Back up /torrents and /passwd before major updates.
+  allow_downgrade: true
+  ssl_restart: false
+
+install:
+  pre_description: "Choose ruTorrent / XML-RPC username and password (HTTP basic auth)."
+  post_description: "Open the ruTorrent URL and sign in. XML-RPC is at `/RPC2` on the same host."
+  custom_description: null
+
+# rTorrent preallocation is an on/off setting.
+env:
+  - key: RT_PREALLOCATE_TYPE
+    value: "1"
+    template_type: none
+  - key: RT_SESSION_SAVE_SECONDS
+    value: "300"
+    template_type: none
+  - key: RT_SEND_BUFFER_SIZE
+    value: "0"
+    template_type: none
+  - key: RT_RECEIVE_BUFFER_SIZE
+    value: "0"
+    template_type: none

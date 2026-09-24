@@ -1,37 +1,27 @@
 # syntax=docker/dockerfile:1
 
-ARG LIBSIG_VERSION=3.0.3
-ARG CARES_VERSION=1.24.0
-ARG CURL_VERSION=8.5.0
-ARG XMLRPC_VERSION=01.58.00
-ARG LIBTORRENT_VERSION=v0.13.8
-ARG RTORRENT_VERSION=v0.9.8
+ARG CARES_VERSION=1.34.8
+ARG CURL_VERSION=8.22.0
+
+ARG LIBTORRENT_VERSION=v0.16.23
+ARG RTORRENT_VERSION=v0.16.23
+
 ARG MKTORRENT_VERSION=v1.1
-ARG GEOIP2_PHPEXT_VERSION=1.3.1
 
-# v4.2.10
-ARG RUTORRENT_VERSION=c9644dda7a9ac1b3fc8b663392c4168adbe5a312
-ARG GEOIP2_RUTORRENT_VERSION=4ff2bde530bb8eef13af84e4413cedea97eda148
+ARG RUTORRENT_VERSION=v5.3.14
+ARG DUMPTORRENT_VERSION=v1.7.0
+ARG UNRAR_VERSION=7.2.7
 
-ARG ALPINE_VERSION=3.19
-ARG ALPINE_S6_VERSION=${ALPINE_VERSION}-2.2.0.3
+ARG ALPINE_VERSION=3.24
+ARG ALPINE_S6_VERSION=${ALPINE_VERSION}-3.2.3.0
 
 FROM --platform=${BUILDPLATFORM} alpine:${ALPINE_VERSION} AS src
-RUN apk --update --no-cache add curl git tar tree xz
+RUN apk --no-cache upgrade && apk --update --no-cache add curl git tar tree sed xz
 WORKDIR /src
-
-FROM src AS src-libsig
-ARG LIBSIG_VERSION
-RUN curl -sSL "https://download.gnome.org/sources/libsigc%2B%2B/3.0/libsigc%2B%2B-${LIBSIG_VERSION}.tar.xz" | tar xJv --strip 1
 
 FROM src AS src-cares
 ARG CARES_VERSION
-RUN curl -sSL "https://c-ares.org/download/c-ares-${CARES_VERSION}.tar.gz" | tar xz --strip 1
-
-FROM src AS src-xmlrpc
-RUN git init . && git remote add origin "https://github.com/crazy-max/xmlrpc-c.git"
-ARG XMLRPC_VERSION
-RUN git fetch origin "${XMLRPC_VERSION}" && git checkout -q FETCH_HEAD
+RUN curl -sSL "https://github.com/c-ares/c-ares/releases/download/v${CARES_VERSION}/c-ares-${CARES_VERSION}.tar.gz" | tar xz --strip 1
 
 FROM src AS src-curl
 ARG CURL_VERSION
@@ -48,14 +38,9 @@ ARG RTORRENT_VERSION
 RUN git fetch origin "${RTORRENT_VERSION}" && git checkout -q FETCH_HEAD
 
 FROM src AS src-mktorrent
-RUN git init . && git remote add origin "https://github.com/esmil/mktorrent.git"
+RUN git init . && git remote add origin "https://github.com/pobrn/mktorrent.git"
 ARG MKTORRENT_VERSION
 RUN git fetch origin "${MKTORRENT_VERSION}" && git checkout -q FETCH_HEAD
-
-FROM src AS src-geoip2-phpext
-RUN git init . && git remote add origin "https://github.com/rlerdorf/geoip.git"
-ARG GEOIP2_PHPEXT_VERSION
-RUN git fetch origin "${GEOIP2_PHPEXT_VERSION}" && git checkout -q FETCH_HEAD
 
 FROM src AS src-rutorrent
 RUN git init . && git remote add origin "https://github.com/Novik/ruTorrent.git"
@@ -63,18 +48,42 @@ ARG RUTORRENT_VERSION
 RUN git fetch origin "${RUTORRENT_VERSION}" && git checkout -q FETCH_HEAD
 RUN rm -rf .git* conf/users plugins/geoip share
 
+FROM composer:2 AS update-geoip2-rutorrent
+WORKDIR /app
+COPY geoip2-rutorrent/composer.json ./
+RUN composer update --no-dev --no-interaction --no-progress --prefer-dist --classmap-authoritative
+
+FROM scratch AS export-geoip2-rutorrent
+COPY --from=update-geoip2-rutorrent /app/composer.json /composer.json
+COPY --from=update-geoip2-rutorrent /app/composer.lock /composer.lock
+COPY --from=update-geoip2-rutorrent /app/vendor /vendor
+
+FROM composer:2 AS vendor-geoip2-rutorrent
+WORKDIR /app
+COPY geoip2-rutorrent/composer.json geoip2-rutorrent/composer.lock ./
+RUN composer install --no-dev --no-interaction --no-progress --prefer-dist --classmap-authoritative
+
 FROM src AS src-geoip2-rutorrent
-RUN git init . && git remote add origin "https://github.com/Micdu70/geoip2-rutorrent.git"
-ARG GEOIP2_RUTORRENT_VERSION
-RUN git fetch origin "${GEOIP2_RUTORRENT_VERSION}" && git checkout -q FETCH_HEAD
-RUN rm -rf .git*
+COPY geoip2-rutorrent /src
+COPY --from=vendor-geoip2-rutorrent /app/vendor /src/vendor
 
 FROM src AS src-mmdb
 RUN curl -SsOL "https://github.com/crazy-max/geoip-updater/raw/mmdb/GeoLite2-City.mmdb" \
   && curl -SsOL "https://github.com/crazy-max/geoip-updater/raw/mmdb/GeoLite2-Country.mmdb"
 
+FROM src AS src-dumptorrent
+RUN git init . && git remote add origin "https://github.com/tomcdj71/dumptorrent.git"
+ARG DUMPTORRENT_VERSION
+RUN git fetch origin "${DUMPTORRENT_VERSION}" && git checkout -q FETCH_HEAD
+RUN sed -i '1i #include <sys/time.h>' src/scrapec.c
+RUN rm -rf .git*
+
+FROM src AS src-unrar
+ARG UNRAR_VERSION
+RUN curl -fsSL "https://www.rarlab.com/rar/unrarsrc-${UNRAR_VERSION}.tar.gz" | tar xz --strip 1
+
 FROM crazymax/alpine-s6:${ALPINE_S6_VERSION} AS builder
-RUN apk --update --no-cache add \
+RUN apk --no-cache upgrade && apk --update --no-cache add \
     autoconf \
     automake \
     binutils \
@@ -83,32 +92,23 @@ RUN apk --update --no-cache add \
     cppunit-dev \
     cmake \
     gd-dev \
-    geoip-dev \
+    libpsl-dev \
+    libsigc++3-dev \
     libtool \
     libxslt-dev \
     linux-headers \
     ncurses-dev \
     nghttp2-dev \
     openssl-dev \
-    patch \
     pcre-dev \
-    php82-dev \
-    php82-pear \
+    php85-dev \
+    php85-pear \
     tar \
     tree \
-    udns-dev \
     xz \
     zlib-dev
 
 ENV DIST_PATH="/dist"
-
-WORKDIR /usr/local/src/libsig
-COPY --from=src-libsig /src .
-RUN ./configure
-RUN make -j$(nproc)
-RUN make install -j$(nproc)
-RUN make DESTDIR=${DIST_PATH} install -j$(nproc)
-RUN tree ${DIST_PATH}
 
 WORKDIR /usr/local/src/cares
 COPY --from=src-cares /src .
@@ -120,104 +120,93 @@ RUN tree ${DIST_PATH}
 
 WORKDIR /usr/local/src/curl
 COPY --from=src-curl /src .
-RUN cmake . -D ENABLE_ARES=ON CURL_LTO=ON -D CURL_USE_OPENSSL=ON -D CURL_BROTLI=ON -D CURL_ZSTD=ON -D BUILD_SHARED_LIBS=ON -D CMAKE_BUILD_TYPE:STRING="Release" -D CMAKE_C_FLAGS_RELEASE:STRING="-O3 -flto=\"$(nproc)\" -pipe"
+RUN cmake . -D ENABLE_ARES=ON -D CURL_LTO=ON -D CURL_USE_OPENSSL=ON -D CURL_BROTLI=ON -D CURL_ZSTD=ON -D BUILD_SHARED_LIBS=ON -D CMAKE_BUILD_TYPE:STRING="Release" -D CMAKE_C_FLAGS_RELEASE:STRING="-O3 -flto=\"$(nproc)\" -pipe"
 RUN cmake --build . --clean-first --parallel $(nproc)
-RUN make install -j$(nproc)
-RUN make DESTDIR=${DIST_PATH} install -j$(nproc)
-RUN tree ${DIST_PATH}
-
-WORKDIR /usr/local/src/xmlrpc
-COPY --from=src-xmlrpc /src .
-RUN ./configure --disable-wininet-client --disable-libwww-client --disable-cplusplus
-RUN make -j$(nproc) CFLAGS="-w -O3 -flto" CXXFLAGS="-w -O3 -flto"
 RUN make install -j$(nproc)
 RUN make DESTDIR=${DIST_PATH} install -j$(nproc)
 RUN tree ${DIST_PATH}
 
 WORKDIR /usr/local/src/libtorrent
 COPY --from=src-libtorrent /src .
-COPY /patches/libtorrent .
-RUN patch -p1 < throttle-fix-0.13.8.patch \
-  && patch -p1 < libtorrent-udns-0.13.8.patch \
-  && patch -p1 < libtorrent-scanf-0.13.8.patch
-RUN ./autogen.sh
-RUN ./configure --with-posix-fallocate --enable-aligned
-RUN make -j$(nproc) CXXFLAGS="-w -O3 -flto"
+RUN autoreconf -vfi
+RUN ./configure --enable-aligned
+RUN make -j$(nproc) CXXFLAGS="-w -O3 -flto -Werror=odr -Werror=lto-type-mismatch -Werror=strict-aliasing"
 RUN make install -j$(nproc)
 RUN make DESTDIR=${DIST_PATH} install -j$(nproc)
 RUN tree ${DIST_PATH}
 
 WORKDIR /usr/local/src/rtorrent
 COPY --from=src-rtorrent /src .
-COPY /patches/rtorrent .
-RUN patch -p1 < lockfile-fix.patch \
-  && patch -p1 < rtorrent-scrape.patch \
-  && patch -p1 < scgi-fix.patch \
-  && patch -p1 < session-file-fix.patch \
-  && patch -p1 < xmlrpc-fix.patch \
-  && patch -p1 < xmlrpc-logic-fix.patch \
-  && patch -p1 < rtorrent-ml-cg-fix.patch \
-  && patch -p1 < rtorrent-ml-cui-fix.patch \
-  && patch -p1 < rtorrent-ml-dc-fix.patch
-RUN ./autogen.sh
-RUN ./configure --with-xmlrpc-c --with-ncurses
-RUN make -j$(nproc) CXXFLAGS="-w -O3 -flto"
+RUN autoreconf -vfi
+RUN ./configure --with-xmlrpc-tinyxml2 --with-ncurses
+RUN make -j$(nproc) CXXFLAGS="-w -O3 -flto -Werror=odr -Werror=lto-type-mismatch -Werror=strict-aliasing"
 RUN make install -j$(nproc)
 RUN make DESTDIR=${DIST_PATH} install -j$(nproc)
 RUN tree ${DIST_PATH}
 
 WORKDIR /usr/local/src/mktorrent
 COPY --from=src-mktorrent /src .
-RUN make -j$(nproc) CC=gcc CFLAGS="-w -O3 -flto"
+RUN echo "CC = gcc" >> Makefile
+RUN echo "CFLAGS = -w -flto -O3" >> Makefile
+RUN echo "USE_PTHREADS = 1" >> Makefile
+RUN echo "USE_OPENSSL = 1" >> Makefile
+RUN make -j$(nproc)
 RUN make install -j$(nproc)
 RUN make DESTDIR=${DIST_PATH} install -j$(nproc)
 RUN tree ${DIST_PATH}
 
-WORKDIR /usr/local/src/geoip2-phpext
-COPY --from=src-geoip2-phpext /src .
-RUN <<EOT
-  set -e
-  phpize82
-  ./configure
-  make
-  make install
-EOT
-RUN mkdir -p ${DIST_PATH}/usr/lib/php82/modules
-RUN cp -f /usr/lib/php82/modules/geoip.so ${DIST_PATH}/usr/lib/php82/modules/
+WORKDIR /usr/local/src/dumptorrent
+COPY --from=src-dumptorrent /src .
+RUN cmake -B build/ -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc -DCMAKE_BUILD_TYPE=Release -S .
+RUN cmake --build build/ --config Release --parallel $(nproc)
+RUN cp build/dumptorrent build/scrapec ${DIST_PATH}/usr/local/bin
 RUN tree ${DIST_PATH}
+
+WORKDIR /usr/local/src/unrar
+COPY --from=src-unrar /src .
+RUN make -j$(nproc) && install -m 755 unrar ${DIST_PATH}/usr/local/bin/unrar
 
 FROM crazymax/alpine-s6:${ALPINE_S6_VERSION}
 COPY --from=builder /dist /
 COPY --from=src-rutorrent --chown=nobody:nogroup /src /var/www/rutorrent
+COPY mobile /var/www/rutorrent/plugins/mobile
+RUN chown -R nobody:nogroup /var/www/rutorrent/plugins/mobile
+COPY scripts/patch-autodl-rutorrent-html5.py /usr/local/bin/patch-autodl-rutorrent-html5.py
+COPY scripts/patch-rutorrent-stable-progress.py /usr/local/bin/patch-rutorrent-stable-progress.py
 COPY --from=src-geoip2-rutorrent --chown=nobody:nogroup /src /var/www/rutorrent/plugins/geoip2
 COPY --from=src-mmdb /src /var/mmdb
 
-ENV PYTHONPATH="$PYTHONPATH:/var/www/rutorrent" \
+ENV PYTHONPATH=":/var/www/rutorrent" \
+  APP_HOME="/var/www/rutorrent" \
   S6_BEHAVIOUR_IF_STAGE2_FAILS="2" \
   S6_KILL_GRACETIME="10000" \
   TZ="UTC" \
   PUID="1000" \
   PGID="1000"
 
-# unrar package is not available since alpine 3.15
-RUN echo "@314 http://dl-cdn.alpinelinux.org/alpine/v3.14/main" >> /etc/apk/repositories \
-  && apk --update --no-cache add unrar@314
+# increase rmem_max and wmem_max for rTorrent configuration (sysctl may no-op during image build)
+RUN echo "net.core.rmem_max = 67108864" >> /etc/sysctl.conf \
+  && echo "net.core.wmem_max = 67108864" >> /etc/sysctl.conf \
+  && (sysctl -p || true)
 
-RUN apk --update --no-cache add \
+# UnRAR is built from current upstream source; DHCP is managed by Docker.
+RUN apk --no-cache upgrade && apk --update --no-cache add \
+    7zip \
     apache2-utils \
     bash \
     bind-tools \
+    curl \
     binutils \
     brotli \
     ca-certificates \
     coreutils \
-    cppunit-dev \
-    dhclient \
+    dtach \
     ffmpeg \
     findutils \
-    geoip \
     grep \
     gzip \
+    gcompat \
+    libsigc++3 \
     libstdc++ \
     mediainfo \
     ncurses \
@@ -225,27 +214,26 @@ RUN apk --update --no-cache add \
     nginx-mod-http-dav-ext \
     nginx-mod-http-geoip2 \
     openssl \
-    php82 \
-    php82-bcmath \
-    php82-ctype \
-    php82-curl \
-    php82-dom \
-    php82-fpm \
-    php82-mbstring \
-    php82-openssl \
-    php82-phar \
-    php82-posix \
-    php82-session \
-    php82-sockets \
-    php82-xml \
-    php82-zip \
+    php85 \
+    php85-bcmath \
+    php85-ctype \
+    php85-curl \
+    php85-dom \
+    php85-fileinfo \
+    php85-fpm \
+    php85-mbstring \
+    php85-openssl \
+    php85-posix \
+    php85-session \
+    php85-sockets \
+    php85-xml \
+    php85-zip \
     python3 \
     py3-pip \
     shadow \
     sox \
     tar \
     tzdata \
-    udns \
     unzip \
     util-linux \
     zip \
@@ -256,10 +244,143 @@ RUN apk --update --no-cache add \
   && curl --version \
   && rm -rf /tmp/*
 
+# Additional packages required for autodl-irssi (Perl modules + irssi)
+RUN apk --update --no-cache add \
+    gcc \
+    git \
+    irssi-perl \
+    libxml2-dev \
+    make \
+    musl-dev \
+    perl-app-cpanminus \
+    perl-dev \
+    perl-net-ssleay \
+    sudo \
+    wget \
+    zlib-dev
+
+RUN cpanm --notest --mirror https://cpan.metacpan.org --mirror-only Archive::Zip HTML::Entities XML::LibXML Digest::SHA JSON JSON::XS
+
+RUN mkdir -p /home/rtorrent \
+  && chown rtorrent:rtorrent /home/rtorrent \
+  && chmod 775 /home/rtorrent
+
+USER rtorrent
+
+RUN <<'EOT'
+set -e
+mkdir -p /home/rtorrent/.irssi/scripts/autorun /home/rtorrent/.autodl /home/rtorrent/watch
+cd /home/rtorrent/.irssi/scripts
+curl -fsSL -o autodl-irssi.zip "https://github.com/autodl-community/autodl-irssi/releases/download/2.6.2/autodl-irssi-v2.6.2.zip"
+unzip -o autodl-irssi.zip
+rm -f autodl-irssi.zip
+PL="$(find /home/rtorrent -maxdepth 5 -name autodl-irssi.pl | head -1)"
+test -n "$PL"
+AUTORUN="/home/rtorrent/.irssi/scripts/autorun"
+if [ "$(dirname "$PL")" != "$AUTORUN" ]; then
+  cp "$PL" "$AUTORUN/"
+fi
+touch /home/rtorrent/.autodl/autodl.cfg
+cd /home/rtorrent/.autodl
+rm -f autodl2.cfg
+if ! grep -q '^load perl' /home/rtorrent/.irssi/startup 2>/dev/null; then
+  echo 'load perl' >> /home/rtorrent/.irssi/startup
+fi
+
+if [ -f autodl.cfg ]; then
+  if grep -sq gui-server-port autodl.cfg && grep -sq gui-server-password autodl.cfg; then
+    sed -i "/gui-server-port/ c\\gui-server-port = 36001" autodl.cfg
+    sed -i "/gui-server-password/ c\\gui-server-password = 123456789" autodl.cfg
+  else
+    sed -i '/gui-server-port/ d' autodl.cfg
+    sed -i '/gui-server-password/ d' autodl.cfg
+    {
+      printf '%s\n' '[options]' 'gui-server-port = 36001' 'gui-server-password = 123456789'
+      cat autodl.cfg
+    } > /tmp/autodl.cfg.new
+    mv /tmp/autodl.cfg.new autodl.cfg
+  fi
+else
+  printf '%s\n' '[options]' 'gui-server-port = 36001' 'gui-server-password = 123456789' > autodl.cfg
+fi
+EOT
+
+USER root
+
+RUN <<'EOT'
+set -e
+mkdir -p /var/www/rutorrent/plugins/autodl-rutorrent
+cd /var/www/rutorrent/plugins/autodl-rutorrent
+git init .
+git remote add origin https://github.com/autodl-community/autodl-rutorrent.git
+git fetch --depth 1 origin ffeebe104cdfe309b96f40ebb574840a877f367c
+git checkout --detach FETCH_HEAD
+rm -rf .git*
+rm -f _conf.php
+{
+  echo '<?php'
+  echo '$autodlPort = 36001;'
+  echo '$autodlPassword = "123456789";'
+} > conf.php
+python3 /usr/local/bin/patch-autodl-rutorrent-html5.py /var/www/rutorrent/plugins/autodl-rutorrent
+cd /var/www/rutorrent/plugins
+# File manager suite (not shipped in Novik/ruTorrent core; same stack as prior Appbox images)
+git clone --depth 1 -b v1.5.1 https://github.com/nelu/rutorrent-filemanager.git filemanager
+rm -rf filemanager/.git*
+git clone --depth 1 -b v1.4.0 https://github.com/nelu/rutorrent-filemanager-media.git filemanager-media
+rm -rf filemanager-media/.git*
+git clone --depth 1 -b v1.5.0 https://github.com/nelu/rutorrent-filemanager-share.git filemanager-share
+rm -rf filemanager-share/.git*
+chown -R nobody:nogroup autodl-rutorrent filemanager filemanager-media filemanager-share
+EOT
+
+RUN apk --update --no-cache del \
+    gcc \
+    git \
+    libxml2-dev \
+    make \
+    musl-dev \
+    perl-app-cpanminus \
+    perl-dev \
+    wget \
+    zlib-dev
+
+RUN chown -R rtorrent:rtorrent /home/rtorrent
+
 COPY rootfs /
+
+COPY scripts/patch-rutorrent-cli-arguments.py /usr/local/bin/patch-rutorrent-cli-arguments.py
+RUN python3 /usr/local/bin/patch-rutorrent-cli-arguments.py /var/www/rutorrent \
+  && php85 -l /var/www/rutorrent/php/getplugins.php \
+  && php85 -l /var/www/rutorrent/php/cli-arguments.php
+
+# ruTorrent's settings dialog must use the working rTorrent 0.16 DHT setter.
+RUN python3 /usr/local/bin/patch-rutorrent-dht-port.py /var/www/rutorrent \
+  && php85 -l /var/www/rutorrent/php/methods-0.16.0.php
+
+# Allow rTorrent to flush its session before s6 escalates shutdown.
+ENV S6_SERVICES_GRACETIME="25000"
+
+# Appbox: gosu per platform Dockerfile guidance; chmod Appbox-specific scripts.
+ARG GOSU_VERSION=1.19
+RUN set -eux \
+  && arch="$(apk --print-arch)" \
+  && case "$arch" in \
+       x86_64) gosuArch=amd64 ;; \
+       aarch64) gosuArch=arm64 ;; \
+       armv7) gosuArch=armhf ;; \
+       *) echo "unsupported arch: $arch"; exit 1 ;; \
+     esac \
+  && curl -fsSL -o /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-${gosuArch}" \
+  && chmod +x /usr/local/bin/gosu \
+  && gosu nobody true \
+  && chmod +x /moduser.sh /etc/cont-init.d/*.sh /usr/local/bin/rtcheck
 
 VOLUME [ "/data", "/downloads", "/passwd" ]
 ENTRYPOINT [ "/init" ]
+
+# Match the previous image behavior: ruTorrent is exposed on 80; XML-RPC/WebDAV stay internal.
+EXPOSE 80/tcp
 
 HEALTHCHECK --interval=30s --timeout=20s --start-period=10s \
   CMD /usr/local/bin/healthcheck
