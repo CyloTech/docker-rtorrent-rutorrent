@@ -229,6 +229,7 @@ RUN apk --no-cache upgrade && apk --update --no-cache add \
     php85-openssl \
     php85-posix \
     php85-session \
+    php85-simplexml \
     php85-sockets \
     php85-xml \
     php85-zip \

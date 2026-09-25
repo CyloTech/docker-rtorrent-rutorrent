@@ -152,6 +152,31 @@ def wait_session(container, predicate, timeout=120):
 assert command(["docker", "image", "inspect", "--format", "{{.Os}}/{{.Architecture}}", EXPECTED]) == "linux/amd64"
 assert command(["docker", "image", "inspect", "--format", '{{index .Config.Labels "io.appbox.rutorrent.revision"}}', EXPECTED]) == "fe468360f94b02def11bbf67b16316bbe8081380"
 command([sys.executable, str(Path(__file__).with_name("registry-check.py")), EXPECTED])
+# Exercise upstream's existing proxy tests inside the actual runtime image.
+# This catches missing PHP extensions that a source-only test run cannot see.
+proxy_tests = r'''
+from pathlib import Path
+import re, subprocess
+tests = sorted(Path('/var/www/rutorrent/tests/php').glob('XMLRPCProxy*Test.php'))
+assert len(tests) >= 10, 'Upstream proxy tests missing'
+runner = """require $argv[1]; foreach(get_declared_classes() as $class) {
+    if(get_parent_class($class) === 'TestCase') {
+        $test = new $class(); $test->setUp(); $test->run(); $test->tearDown();
+    }
+}"""
+assertions = 0
+for test in tests:
+    result = subprocess.run(['php', '-d', 'zend.assertions=1', '-d', 'display_errors=1',
+                             '-r', runner, str(test)], capture_output=True, text=True)
+    output = result.stdout + result.stderr
+    if result.returncode or re.search(r'^Failed:|^not ok|failed with error|Fatal error|Parse error|Uncaught', output, re.M):
+        raise RuntimeError(test.name + ' failed:\\n' + output[-8000:])
+    assertions += output.count('Passed:')
+assert assertions > 100, 'Upstream proxy assertions did not run'
+print('PASS upstream XML-RPC proxy: ' + str(len(tests)) + ' files, ' + str(assertions) + ' assertions')
+'''
+print(command(["docker", "run", "--rm", "--network", "none", "--entrypoint", "python3", EXPECTED,
+               "-c", proxy_tests]), flush=True)
 command(["docker", "pull", PREVIOUS])
 network = RUN + "-network"
 command(["docker", "network", "create", "--internal", "--label", LABEL, network])
