@@ -8,7 +8,8 @@ ARG RTORRENT_VERSION=v0.16.23
 
 ARG MKTORRENT_VERSION=v1.1
 
-ARG RUTORRENT_VERSION=v5.3.14
+# Upstream master after the merged Finished-time fix (catalogue 5.3.15.1).
+ARG RUTORRENT_VERSION=fe468360f94b02def11bbf67b16316bbe8081380
 ARG DUMPTORRENT_VERSION=v1.7.0
 ARG UNRAR_VERSION=7.2.7
 
@@ -45,7 +46,8 @@ RUN git fetch origin "${MKTORRENT_VERSION}" && git checkout -q FETCH_HEAD
 FROM src AS src-rutorrent
 RUN git init . && git remote add origin "https://github.com/Novik/ruTorrent.git"
 ARG RUTORRENT_VERSION
-RUN git fetch origin "${RUTORRENT_VERSION}" && git checkout -q FETCH_HEAD
+RUN git fetch origin "${RUTORRENT_VERSION}" && git checkout -q FETCH_HEAD \
+  && test "$(git rev-parse HEAD)" = "${RUTORRENT_VERSION}"
 RUN rm -rf .git* conf/users plugins/geoip share
 
 FROM composer:2 AS update-geoip2-rutorrent
@@ -167,6 +169,8 @@ COPY --from=src-unrar /src .
 RUN make -j$(nproc) && install -m 755 unrar ${DIST_PATH}/usr/local/bin/unrar
 
 FROM crazymax/alpine-s6:${ALPINE_S6_VERSION}
+ARG RUTORRENT_VERSION
+LABEL io.appbox.rutorrent.revision="${RUTORRENT_VERSION}"
 COPY --from=builder /dist /
 COPY --from=src-rutorrent --chown=nobody:nogroup /src /var/www/rutorrent
 COPY mobile /var/www/rutorrent/plugins/mobile
@@ -357,11 +361,6 @@ RUN python3 /usr/local/bin/patch-rutorrent-cli-arguments.py /var/www/rutorrent \
 # ruTorrent's settings dialog must use the working rTorrent 0.16 DHT setter.
 RUN python3 /usr/local/bin/patch-rutorrent-dht-port.py /var/www/rutorrent \
   && php85 -l /var/www/rutorrent/php/methods-0.16.0.php
-
-# Completed-data loads must get a Finished time with rTorrent 0.16.
-COPY scripts/patch-rutorrent-seedingtime.py /usr/local/bin/patch-rutorrent-seedingtime.py
-RUN python3 /usr/local/bin/patch-rutorrent-seedingtime.py /var/www/rutorrent \
-  && php85 -l /var/www/rutorrent/plugins/seedingtime/init.php
 
 # Allow rTorrent to flush its session before s6 escalates shutdown.
 ENV S6_SERVICES_GRACETIME="25000"

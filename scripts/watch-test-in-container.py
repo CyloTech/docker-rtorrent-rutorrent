@@ -145,7 +145,7 @@ elif mode == "versions":
     assert rpc("system.library_version") == "0.16.23"
     assert rpc("network.listen.port") == 51000
     assert rpc("dht.override_port") == 51001
-    assert 'version: "5.3.14"' in Path("/var/www/rutorrent/js/webui.js").read_text()
+    assert 'version: "5.3.15"' in Path("/var/www/rutorrent/js/webui.js").read_text()
     assert subprocess.check_output(["php", "-r", "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;"], text=True) == "8.5"
     pid = int(rpc("system.pid"))
     rtorrent_status = dict(line.split(":", 1) for line in Path(f"/proc/{pid}/status").read_text().splitlines() if ":" in line)

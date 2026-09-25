@@ -13,10 +13,10 @@ users, additional plugins, and a custom mobile ruTorrent UI.
 
 ## Current Image State
 
-- Registry tag: `repo.cylo.net/rutorrent:5.3.14-0.16.23-2`
+- Registry tag: `repo.cylo.net/rutorrent:5.3.15.1-0.16.23`
 - Base runtime: `crazymax/alpine-s6:3.24-3.2.3.0`
 - rTorrent / libtorrent: `0.16.23`
-- ruTorrent: `5.3.14`
+- ruTorrent: `5.3.15` (upstream commit `fe468360f94b02def11bbf67b16316bbe8081380`, catalogue `5.3.15.1`)
 - PHP: `8.5`
 - Entrypoint: `ENTRYPOINT ["/init"]` through s6-overlay.
 - Production architecture: `linux/amd64`.
@@ -181,8 +181,8 @@ ssh appbox@builder.tester2.appboxes.co -p12246 \
   "mkdir -p /home/appbox/builds/docker-rtorrent-rutorrent && \
    tar xzf - -C /home/appbox/builds/docker-rtorrent-rutorrent && \
    cd /home/appbox/builds/docker-rtorrent-rutorrent && \
-   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.14-0.16.23-2 . && \
-   docker push repo.cylo.net/rutorrent:5.3.14-0.16.23-2"
+   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.1-0.16.23 . && \
+   docker push repo.cylo.net/rutorrent:5.3.15.1-0.16.23"
 ```
 
 Only build, push, or commit when the user explicitly asks. Do not force-push or reset.
@@ -198,7 +198,7 @@ docker run --rm --platform linux/amd64 \
   -p 8080:80 \
   -v rutorrent-torrents:/torrents \
   -v rutorrent-passwd:/passwd \
-  repo.cylo.net/rutorrent:5.3.14-0.16.23-2
+  repo.cylo.net/rutorrent:5.3.15.1-0.16.23
 ```
 
 Open `http://localhost:8080/`. Force mobile mode with `http://localhost:8080/index.html?mobile=1`.
@@ -235,9 +235,17 @@ upgrade checks live in scripts/release-gate.py.
 ## Finished time compatibility
 
 Release `5.3.14-0.16.23-2` backports the ruTorrent seedingtime hash-done fix.
-`scripts/patch-rutorrent-seedingtime.py` replaces the chained condition with
+That release replaced the chained condition with
 nested branches supported by rTorrent 0.16. Newly created and already-complete
 torrents receive a Finished time; existing times are preserved. The build refuses
 an unexpected plugin layout. The release gate exercises Create Torrent,
 incomplete torrents, timestamp preservation, restart, and the previous image's
 persistent volume. Custom replacement seedingtime plugins remain user-managed.
+
+## Upstream snapshot: 5.3.15.1
+
+The catalogue version `5.3.15.1` uses ruTorrent master at `fe468360f94b02def11bbf67b16316bbe8081380`
+(merged PR #3329), with rTorrent/libtorrent 0.16.23. The web UI reports the
+upstream version 5.3.15. The local seedingtime backport has been removed because
+the pinned upstream source contains the fix. Existing Appbox packaging, one app
+slot, and downgrade support are retained.

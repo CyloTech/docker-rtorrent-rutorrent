@@ -10,10 +10,10 @@ import subprocess
 import sys
 import time
 
-EXPECTED = "repo.cylo.net/rutorrent:5.3.14-0.16.23-2"
+EXPECTED = "repo.cylo.net/rutorrent:5.3.15.1-0.16.23"
 PREVIOUS = "repo.cylo.net/rutorrent@sha256:452cf30b6f99f2274750544d379fad50d8ea26adaf19ae473513cac7970b14b9"
 assert len(sys.argv) == 2 and sys.argv[1] == EXPECTED, "Unexpected image reference"
-RUN = "rutorrent-seedingtime-gate-" + secrets.token_hex(6)
+RUN = "rutorrent-upstream-gate-" + secrets.token_hex(6)
 LABEL = "appbox.release-gate=" + RUN
 containers, volumes = [], []
 network = None
@@ -150,6 +150,7 @@ def wait_session(container, predicate, timeout=120):
         time.sleep(3)
 
 assert command(["docker", "image", "inspect", "--format", "{{.Os}}/{{.Architecture}}", EXPECTED]) == "linux/amd64"
+assert command(["docker", "image", "inspect", "--format", '{{index .Config.Labels "io.appbox.rutorrent.revision"}}', EXPECTED]) == "fe468360f94b02def11bbf67b16316bbe8081380"
 command([sys.executable, str(Path(__file__).with_name("registry-check.py")), EXPECTED])
 command(["docker", "pull", PREVIOUS])
 network = RUN + "-network"

@@ -3,7 +3,7 @@
 import subprocess
 import sys
 
-EXPECTED = "repo.cylo.net/rutorrent:5.3.14-0.16.23-2"
+EXPECTED = "repo.cylo.net/rutorrent:5.3.15.1-0.16.23"
 PREVIOUS = "repo.cylo.net/rutorrent@sha256:452cf30b6f99f2274750544d379fad50d8ea26adaf19ae473513cac7970b14b9"
 
 
