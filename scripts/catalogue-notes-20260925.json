@@ -1,0 +1,44 @@
+[
+  {
+    "id": 1302,
+    "version": "5.3.12-0.16.10",
+    "tag": "5.3.12-0.16.10",
+    "unchanged_hash": "5a5fde009cea841a74f899e4ce2df9a3",
+    "changes": "Updates ruTorrent to 5.3.12, with rTorrent and libtorrent 0.16.10."
+  },
+  {
+    "id": 1308,
+    "version": "5.3.12-0.16.10-1",
+    "tag": "5.3.12-0.16.10-1",
+    "unchanged_hash": "ae746e31228bb74e555aeeb05e70e85a",
+    "changes": "Fixes torrents added through the watch folder stopping immediately after import. Imports can take up to five minutes. Previously stopped torrents may need to be started again after updating."
+  },
+  {
+    "id": 1321,
+    "version": "5.3.14-0.16.22-3",
+    "tag": "5.3.14-0.16.22-3",
+    "unchanged_hash": "9de2130240c60fec3a2016263ebef9e4",
+    "changes": "Fixes ruTorrent's DHT port setting with rTorrent 0.16.22 and restores automatic TCP buffer sizing. Existing custom configuration is preserved."
+  },
+  {
+    "id": 1322,
+    "version": "5.3.14-0.16.23",
+    "tag": "5.3.14-0.16.23",
+    "unchanged_hash": "e1865e4afd96132c9e2cbf299f9bc1f6",
+    "changes": "Updates rTorrent and libtorrent to 0.16.23. ruTorrent remains at 5.3.14."
+  },
+  {
+    "id": 1324,
+    "version": "5.3.14-0.16.23-1",
+    "tag": "5.3.14-0.16.23-1",
+    "unchanged_hash": "3f1858dffab020903ffa5e1c343e5dfa",
+    "changes": "Fixes the incorrect PHP argument-handling warning shown by ruTorrent on PHP 8.5. ruTorrent remains at 5.3.14, with rTorrent and libtorrent 0.16.23."
+  },
+  {
+    "id": 1335,
+    "version": "5.3.15.1",
+    "tag": "5.3.15.1-0.16.23",
+    "unchanged_hash": "8f51df2eb4d0e7a5847aee5c2f1a61f9",
+    "changes": "Updates ruTorrent to 5.3.15 with the upstream Finished-time fix. Newly created and already-complete torrents now receive a Finished time, while existing times are preserved. Adds the PHP XML support required by the updated XML-RPC proxy. rTorrent and libtorrent remain at 0.16.23. Hard-refresh ruTorrent after updating."
+  }
+]
