@@ -13,10 +13,10 @@ users, additional plugins, and a custom mobile ruTorrent UI.
 
 ## Current Image State
 
-- Registry tag: `repo.cylo.net/rutorrent:5.3.15.1-0.16.23`
+- Registry tag: `repo.cylo.net/rutorrent:5.3.15.2-0.16.24`
 - Base runtime: `crazymax/alpine-s6:3.24-3.2.3.0`
-- rTorrent / libtorrent: `0.16.23`
-- ruTorrent: `5.3.15` (upstream commit `fe468360f94b02def11bbf67b16316bbe8081380`, catalogue `5.3.15.1`)
+- rTorrent / libtorrent: `0.16.24`
+- ruTorrent: `5.3.15` (upstream commit `fe468360f94b02def11bbf67b16316bbe8081380`, catalogue `5.3.15.2`)
 - PHP: `8.5`
 - Entrypoint: `ENTRYPOINT ["/init"]` through s6-overlay.
 - Production architecture: `linux/amd64`.
@@ -181,8 +181,8 @@ ssh appbox@builder.tester2.appboxes.co -p12246 \
   "mkdir -p /home/appbox/builds/docker-rtorrent-rutorrent && \
    tar xzf - -C /home/appbox/builds/docker-rtorrent-rutorrent && \
    cd /home/appbox/builds/docker-rtorrent-rutorrent && \
-   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.1-0.16.23 . && \
-   docker push repo.cylo.net/rutorrent:5.3.15.1-0.16.23"
+   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.2-0.16.24 . && \
+   docker push repo.cylo.net/rutorrent:5.3.15.2-0.16.24"
 ```
 
 Only build, push, or commit when the user explicitly asks. Do not force-push or reset.
@@ -198,7 +198,7 @@ docker run --rm --platform linux/amd64 \
   -p 8080:80 \
   -v rutorrent-torrents:/torrents \
   -v rutorrent-passwd:/passwd \
-  repo.cylo.net/rutorrent:5.3.15.1-0.16.23
+  repo.cylo.net/rutorrent:5.3.15.2-0.16.24
 ```
 
 Open `http://localhost:8080/`. Force mobile mode with `http://localhost:8080/index.html?mobile=1`.
@@ -249,3 +249,11 @@ The catalogue version `5.3.15.1` uses ruTorrent master at `fe468360f94b02def11bb
 upstream version 5.3.15. The local seedingtime backport has been removed because
 the pinned upstream source contains the fix. Existing Appbox packaging, one app
 slot, and downgrade support are retained.
+
+## rTorrent and libtorrent 0.16.24
+
+Catalogue `5.3.15.2` uses the matching upstream rTorrent and libtorrent
+`v0.16.24` tags. The pinned ruTorrent 5.3.15 revision, Appbox layout and
+resource settings are unchanged. The 0.16.24 `ip%device` bind syntax removal
+does not affect the managed Appbox configuration; test persisted custom
+configuration and the DHT/RPC behavior during release validation.

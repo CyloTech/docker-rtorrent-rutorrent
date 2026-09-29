@@ -141,8 +141,8 @@ echo json_encode(array('linked' => (bool)$settings->linkExist, 'version' => $set
     value["ready"] = value["linked"] and value["version"] == rpc("system.client_version")
     print(json.dumps(value))
 elif mode == "versions":
-    assert rpc("system.client_version") == "0.16.23"
-    assert rpc("system.library_version") == "0.16.23"
+    assert rpc("system.client_version") == "0.16.24"
+    assert rpc("system.library_version") == "0.16.24"
     assert rpc("network.listen.port") == 51000
     assert rpc("dht.override_port") == 51001
     assert 'version: "5.3.15"' in Path("/var/www/rutorrent/js/webui.js").read_text()

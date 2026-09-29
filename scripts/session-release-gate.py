@@ -10,8 +10,8 @@ import subprocess
 import sys
 import time
 
-EXPECTED = "repo.cylo.net/rutorrent:5.3.15.1-0.16.23"
-PREVIOUS = "repo.cylo.net/rutorrent@sha256:452cf30b6f99f2274750544d379fad50d8ea26adaf19ae473513cac7970b14b9"
+EXPECTED = "repo.cylo.net/rutorrent:5.3.15.2-0.16.24"
+PREVIOUS = "repo.cylo.net/rutorrent@sha256:fc8a15f0b42d7368b06cf1dd7d16dcb0b1d20d5a2a096f1a3dbfb9d9573e4644"
 assert len(sys.argv) == 2 and sys.argv[1] == EXPECTED, "Unexpected image reference"
 RUN = "rutorrent-upstream-gate-" + secrets.token_hex(6)
 LABEL = "appbox.release-gate=" + RUN
@@ -204,7 +204,7 @@ for suffix,target in (('torrents','/torrents'),('passwd','/passwd')):
 old=RUN+'-old'
 run_app(old,PREVIOUS,'old',storage,interval='10800')
 check_php_cli(old)
-check_seedingtime(old,"old")
+check_seedingtime(old,"fresh")
 inside(old,'web','appbox-watch-gate-session-existing')
 inside(old,'save')
 check_network(old)

@@ -8,15 +8,15 @@ file manager plugins, WebDAV, and a refreshed mobile ruTorrent UI.
 The current Appbox image tag is:
 
 ```bash
-repo.cylo.net/rutorrent:5.3.15.1-0.16.23
+repo.cylo.net/rutorrent:5.3.15.2-0.16.24
 ```
 
 ## Current Versions
 
 - Alpine `3.24`
-- rTorrent `0.16.23`
-- libtorrent `0.16.23`
-- ruTorrent `5.3.14`
+- rTorrent `0.16.24`
+- libtorrent `0.16.24`
+- ruTorrent `5.3.15`
 - c-ares `1.34.8`
 - curl `8.22.0`
 - mktorrent `1.1`
@@ -206,7 +206,7 @@ Production builds target `linux/amd64`.
 Local build:
 
 ```bash
-docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.1-0.16.23 .
+docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.2-0.16.24 .
 ```
 
 Remote builder currently used for release builds:
@@ -223,8 +223,8 @@ ssh appbox@builder.tester2.appboxes.co -p12246 \
   "mkdir -p /home/appbox/builds/docker-rtorrent-rutorrent && \
    tar xzf - -C /home/appbox/builds/docker-rtorrent-rutorrent && \
    cd /home/appbox/builds/docker-rtorrent-rutorrent && \
-   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.1-0.16.23 . && \
-   docker push repo.cylo.net/rutorrent:5.3.15.1-0.16.23"
+   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.2-0.16.24 . && \
+   docker push repo.cylo.net/rutorrent:5.3.15.2-0.16.24"
 ```
 
 Only push a registry tag when the user explicitly asks for it.
@@ -240,7 +240,7 @@ docker run --rm --platform linux/amd64 \
   -p 8080:80 \
   -v rutorrent-torrents:/torrents \
   -v rutorrent-passwd:/passwd \
-  repo.cylo.net/rutorrent:5.3.15.1-0.16.23
+  repo.cylo.net/rutorrent:5.3.15.2-0.16.24
 ```
 
 Open `http://localhost:8080/` and sign in with the provided credentials. Force mobile
@@ -374,10 +374,10 @@ graceful shutdown and persisted configuration behavior are retained.
 Run the exact-image release gate on the dedicated builder before publishing:
 
 ```sh
-python3 scripts/session-release-gate.py repo.cylo.net/rutorrent:5.3.15.1-0.16.23
+python3 scripts/session-release-gate.py repo.cylo.net/rutorrent:5.3.15.2-0.16.24
 ```
 
-The current upgrade gate starts from the immutable 5.3.14-0.16.23-1 image and verifies
+The current upgrade gate starts from the immutable 5.3.15.1-0.16.23 image and verifies
 torrent sessions, custom configuration, authentication and data retention.
 
 ## Finished time compatibility
@@ -397,3 +397,11 @@ The catalogue version `5.3.15.1` uses ruTorrent master at `fe468360f94b02def11bb
 upstream version 5.3.15. The local seedingtime backport has been removed because
 the pinned upstream source contains the fix. Existing Appbox packaging, one app
 slot, and downgrade support are retained.
+
+## rTorrent and libtorrent 0.16.24
+
+Catalogue `5.3.15.2` pairs the upstream rTorrent and libtorrent `v0.16.24`
+releases with the existing ruTorrent `5.3.15` source revision. rTorrent fixes
+DHT, tracker, peer and metadata handling, plus several crash and input-validation
+issues. The image does not use the removed `ip%device` bind syntax. Appbox
+volumes, ports, authentication, one app slot and downgrade support stay the same.
