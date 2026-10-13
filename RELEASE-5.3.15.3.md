@@ -21,6 +21,12 @@ Finished times, PHP CLI, DHT and peer ports, callbacks, the five-minute session
 save, forced-stop recovery and graceful stop/restart. It also confirmed
 ratiocolor is enabled and patched after both fresh install and upgrade.
 
-Catalogue: `scripts/catalogue-5.3.15.3-admin-test.sql` adds this version as
-admin-only and non-default for testing on the grant Cylo. 5.3.15.2 remains the
-default. Existing customer installations were not updated.
+Catalogue: `scripts/catalogue-5.3.15.3-admin-test.sql` added this version as
+app_versions 1412 (admin-only, non-default). It was installed on the grant Cylo
+through Appbox (instance 264104): installation completed through the normal
+callback, ratiocolor loaded with text colouring, and visible rows recoloured in
+place when their ratio changed. The test instance was then uninstalled.
+`scripts/catalogue-5.3.15.3-promote.sql` then made 1412 the sole public default,
+replacing 1339 (still enabled for downgrades), and set the app row to
+5.3.15.3. Both changes were read back. Existing customer installations were not
+updated.
