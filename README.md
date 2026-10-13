@@ -8,7 +8,7 @@ file manager plugins, WebDAV, and a refreshed mobile ruTorrent UI.
 The current Appbox image tag is:
 
 ```bash
-repo.cylo.net/rutorrent:5.3.15.2-0.16.24
+repo.cylo.net/rutorrent:5.3.15.3-0.16.24
 ```
 
 ## Current Versions
@@ -32,7 +32,7 @@ repo.cylo.net/rutorrent:5.3.15.2-0.16.24
 - Compatibility with the previous Appbox `/torrents` data layout.
 - Bundled `mobile/` plugin with Appbox-style light/dark UI, search, details cards, add flow, directory browser, and create-torrent support.
 - Bundled `autodl-irssi` and `autodl-rutorrent`, with compatibility patches applied at build time and again on boot.
-- Bundled `geoip2`, `filemanager`, `filemanager-media`, and `filemanager-share`.
+- Bundled `geoip2`, `filemanager`, `filemanager-media`, `filemanager-share`, and `ratiocolor`.
 - WebDAV listener for completed downloads.
 - `rtcheck` service restored from the previous Appbox image.
 - Appbox dashboard-inspired `appbox` ruTorrent theme, plus the previous `club-QuickBox` theme.
@@ -123,6 +123,7 @@ The image keeps the upstream ruTorrent plugin set and adds or configures:
 - `filemanager`
 - `filemanager-media`
 - `filemanager-share`
+- `ratiocolor`
 - `theme` with `appbox` as the default and `club-QuickBox` still bundled
 - `create` configured to use `/usr/local/bin/mktorrent`
 
@@ -206,7 +207,7 @@ Production builds target `linux/amd64`.
 Local build:
 
 ```bash
-docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.2-0.16.24 .
+docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.3-0.16.24 .
 ```
 
 Remote builder currently used for release builds:
@@ -223,8 +224,8 @@ ssh appbox@builder.tester2.appboxes.co -p12246 \
   "mkdir -p /home/appbox/builds/docker-rtorrent-rutorrent && \
    tar xzf - -C /home/appbox/builds/docker-rtorrent-rutorrent && \
    cd /home/appbox/builds/docker-rtorrent-rutorrent && \
-   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.2-0.16.24 . && \
-   docker push repo.cylo.net/rutorrent:5.3.15.2-0.16.24"
+   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.3-0.16.24 . && \
+   docker push repo.cylo.net/rutorrent:5.3.15.3-0.16.24"
 ```
 
 Only push a registry tag when the user explicitly asks for it.
@@ -240,7 +241,7 @@ docker run --rm --platform linux/amd64 \
   -p 8080:80 \
   -v rutorrent-torrents:/torrents \
   -v rutorrent-passwd:/passwd \
-  repo.cylo.net/rutorrent:5.3.15.2-0.16.24
+  repo.cylo.net/rutorrent:5.3.15.3-0.16.24
 ```
 
 Open `http://localhost:8080/` and sign in with the provided credentials. Force mobile
@@ -374,7 +375,7 @@ graceful shutdown and persisted configuration behavior are retained.
 Run the exact-image release gate on the dedicated builder before publishing:
 
 ```sh
-python3 scripts/session-release-gate.py repo.cylo.net/rutorrent:5.3.15.2-0.16.24
+python3 scripts/session-release-gate.py repo.cylo.net/rutorrent:5.3.15.3-0.16.24
 ```
 
 The current upgrade gate starts from the immutable 5.3.15.1-0.16.23 image and verifies
@@ -405,3 +406,11 @@ releases with the existing ruTorrent `5.3.15` source revision. rTorrent fixes
 DHT, tracker, peer and metadata handling, plus several crash and input-validation
 issues. The image does not use the removed `ip%device` bind syntax. Appbox
 volumes, ports, authentication, one app slot and downgrade support stay the same.
+
+## Ratio colours (5.3.15.3)
+
+Catalogue `5.3.15.3` restores the `ratiocolor` plugin from earlier Appbox images.
+The ratio column text runs from red at 0 through orange and green to blue at 30
+and above. Upstream only recolours when rows are redrawn, so the image adds a
+`syncDOM()` hook to update visible rows when their ratio changes. Everything else
+matches `5.3.15.2`.

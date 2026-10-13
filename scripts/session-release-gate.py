@@ -10,8 +10,8 @@ import subprocess
 import sys
 import time
 
-EXPECTED = "repo.cylo.net/rutorrent:5.3.15.2-0.16.24"
-PREVIOUS = "repo.cylo.net/rutorrent@sha256:fc8a15f0b42d7368b06cf1dd7d16dcb0b1d20d5a2a096f1a3dbfb9d9573e4644"
+EXPECTED = "repo.cylo.net/rutorrent:5.3.15.3-0.16.24"
+PREVIOUS = "repo.cylo.net/rutorrent@sha256:417626fc0136226ff6f120edfc54ea02e88acd6d8fc41b56fc60400425a73be5"
 assert len(sys.argv) == 2 and sys.argv[1] == EXPECTED, "Unexpected image reference"
 RUN = "rutorrent-upstream-gate-" + secrets.token_hex(6)
 LABEL = "appbox.release-gate=" + RUN
@@ -123,6 +123,25 @@ def check_php_cli(container, old=False):
     value = command(args, data=php_cli_code, timeout=120)
     print("PASS PHP CLI diagnostic: " + value, flush=True)
 
+ratiocolor_code = r"""
+import base64, os, urllib.request
+login = base64.b64encode(('releasegate:' + os.environ['PASSWORD']).encode()).decode()
+request = urllib.request.Request('http://127.0.0.1/php/getplugins.php', headers={'Authorization': 'Basic ' + login})
+with urllib.request.urlopen(request, timeout=60) as response:
+    assert response.status == 200
+    body = ''.join(response.read().decode().split())
+start = body.find("rPlugin('ratiocolor'")
+assert start >= 0, 'ratiocolor missing from plugin initialization response'
+plugin = body[start:body.find('})();', start)]
+assert 'plugin.disable()' not in plugin, 'ratiocolor is disabled'
+assert 'changeWhat="font"' in plugin and 'plugin.tempSyncDOM' in plugin, 'ratiocolor Appbox patch missing'
+print('ratiocolor enabled with font colouring and syncDOM hook')
+"""
+
+def check_ratiocolor(container):
+    value = command(["docker", "exec", "-i", container, "python3", "-c", ratiocolor_code], timeout=120)
+    print("PASS " + value, flush=True)
+
 seedingtime_code = Path(__file__).with_name("seedingtime-test-in-container.py").read_text()
 
 def check_seedingtime(container, mode):
@@ -215,6 +234,7 @@ command(['docker','stop','--time','30',old])
 fresh=RUN+'-fresh'
 run_app(fresh,EXPECTED,'fresh',[])
 check_php_cli(fresh)
+check_ratiocolor(fresh)
 check_seedingtime(fresh,"fresh")
 session(fresh,'config');inside(fresh,'versions')
 check_network(fresh)
@@ -247,6 +267,7 @@ print('PASS fresh install and completion-save: private 32 MiB seed saved as comp
 upgraded=RUN+'-upgrade'
 run_app(upgraded,EXPECTED,'upgrade',storage,interval='10800')
 check_php_cli(upgraded)
+check_ratiocolor(upgraded)
 check_seedingtime(upgraded,"upgrade")
 check_seedingtime(upgraded,"upgraded")
 session(upgraded,'config');session(upgraded,'retained-config')

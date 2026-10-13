@@ -336,7 +336,16 @@ git clone --depth 1 -b v1.4.0 https://github.com/nelu/rutorrent-filemanager-medi
 rm -rf filemanager-media/.git*
 git clone --depth 1 -b v1.5.0 https://github.com/nelu/rutorrent-filemanager-share.git filemanager-share
 rm -rf filemanager-share/.git*
-chown -R nobody:nogroup autodl-rutorrent filemanager filemanager-media filemanager-share
+# Ratio colours, as shipped by earlier Appbox images.
+mkdir ratiocolor
+cd ratiocolor
+git init .
+git remote add origin https://github.com/Gyran/rutorrent-ratiocolor.git
+git fetch --depth 1 origin 3ab4962be86d17fb83649b6db44767796ee377de
+git checkout --detach FETCH_HEAD
+rm -rf .git*
+cd ..
+chown -R nobody:nogroup autodl-rutorrent filemanager filemanager-media filemanager-share ratiocolor
 EOT
 
 RUN apk --update --no-cache del \
@@ -358,6 +367,9 @@ COPY scripts/patch-rutorrent-cli-arguments.py /usr/local/bin/patch-rutorrent-cli
 RUN python3 /usr/local/bin/patch-rutorrent-cli-arguments.py /var/www/rutorrent \
   && php85 -l /var/www/rutorrent/php/getplugins.php \
   && php85 -l /var/www/rutorrent/php/cli-arguments.php
+
+COPY scripts/patch-ratiocolor.py /usr/local/bin/patch-ratiocolor.py
+RUN python3 /usr/local/bin/patch-ratiocolor.py /var/www/rutorrent/plugins/ratiocolor
 
 # ruTorrent's settings dialog must use the working rTorrent 0.16 DHT setter.
 RUN python3 /usr/local/bin/patch-rutorrent-dht-port.py /var/www/rutorrent \

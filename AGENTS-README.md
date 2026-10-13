@@ -13,10 +13,10 @@ users, additional plugins, and a custom mobile ruTorrent UI.
 
 ## Current Image State
 
-- Registry tag: `repo.cylo.net/rutorrent:5.3.15.2-0.16.24`
+- Registry tag: `repo.cylo.net/rutorrent:5.3.15.3-0.16.24`
 - Base runtime: `crazymax/alpine-s6:3.24-3.2.3.0`
 - rTorrent / libtorrent: `0.16.24`
-- ruTorrent: `5.3.15` (upstream commit `fe468360f94b02def11bbf67b16316bbe8081380`, catalogue `5.3.15.2`)
+- ruTorrent: `5.3.15` (upstream commit `fe468360f94b02def11bbf67b16316bbe8081380`, catalogue `5.3.15.3`)
 - PHP: `8.5`
 - Entrypoint: `ENTRYPOINT ["/init"]` through s6-overlay.
 - Production architecture: `linux/amd64`.
@@ -78,6 +78,8 @@ The Dockerfile builds or vendors:
 - `autodl-irssi` into `/home/rtorrent`.
 - `autodl-rutorrent` into `/var/www/rutorrent/plugins/autodl-rutorrent`.
 - `filemanager`, `filemanager-media`, and `filemanager-share`.
+- `ratiocolor` (Gyran, pinned commit), patched by `scripts/patch-ratiocolor.py` to colour
+  the ratio text and to recolour after ruTorrent 5's in-place `syncDOM()` cell updates.
 - `appbox` ruTorrent theme into `/var/www/rutorrent/plugins/theme/themes/appbox`.
 - `mktorrent` for the ruTorrent `create` plugin.
 - DumpTorrent tools for the ruTorrent dump plugin.
@@ -181,8 +183,8 @@ ssh appbox@builder.tester2.appboxes.co -p12246 \
   "mkdir -p /home/appbox/builds/docker-rtorrent-rutorrent && \
    tar xzf - -C /home/appbox/builds/docker-rtorrent-rutorrent && \
    cd /home/appbox/builds/docker-rtorrent-rutorrent && \
-   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.2-0.16.24 . && \
-   docker push repo.cylo.net/rutorrent:5.3.15.2-0.16.24"
+   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.3-0.16.24 . && \
+   docker push repo.cylo.net/rutorrent:5.3.15.3-0.16.24"
 ```
 
 Only build, push, or commit when the user explicitly asks. Do not force-push or reset.
@@ -198,7 +200,7 @@ docker run --rm --platform linux/amd64 \
   -p 8080:80 \
   -v rutorrent-torrents:/torrents \
   -v rutorrent-passwd:/passwd \
-  repo.cylo.net/rutorrent:5.3.15.2-0.16.24
+  repo.cylo.net/rutorrent:5.3.15.3-0.16.24
 ```
 
 Open `http://localhost:8080/`. Force mobile mode with `http://localhost:8080/index.html?mobile=1`.
@@ -257,3 +259,11 @@ Catalogue `5.3.15.2` uses the matching upstream rTorrent and libtorrent
 resource settings are unchanged. The 0.16.24 `ip%device` bind syntax removal
 does not affect the managed Appbox configuration; test persisted custom
 configuration and the DHT/RPC behavior during release validation.
+
+## Ratio colours (5.3.15.3)
+
+Catalogue `5.3.15.3` restores the `ratiocolor` plugin from earlier Appbox images.
+The ratio column text runs from red at 0 through orange and green to blue at 30
+and above. Upstream only recolours when rows are redrawn, so the image adds a
+`syncDOM()` hook to update visible rows when their ratio changes. Everything else
+matches `5.3.15.2`.
