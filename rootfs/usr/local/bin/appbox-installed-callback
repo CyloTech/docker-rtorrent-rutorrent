@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Tell Appbox this instance is installed: POST /v1/apps/installed/${INSTANCE_ID}.
+# Network errors, 408, 429 and 5xx are retried with backoff. Any other
+# response is final, because repeating a rejected callback cannot succeed.
+set -u
+
+if [ -z "${INSTANCE_ID:-}" ] || [ "${SKIP_APPBOX_CALLBACK:-0}" = "1" ]; then
+  exit 0
+fi
+
+callback_base="${APPBOX_CALLBACK_BASE:-https://api.cylo.net}"
+callback_headers=(
+  -H "Accept: application/json"
+  -H "Content-Type:application/json"
+)
+if [ -n "${CALLBACK_TOKEN:-}" ]; then
+  callback_headers+=(-H "X-Cylo-Callback-Token: ${CALLBACK_TOKEN}")
+fi
+
+# INSTANCE_ID can carry the callback token as a query string; never log it.
+instance_label="${INSTANCE_ID%%\?*}"
+
+retry_delay="${APPBOX_CALLBACK_RETRY_DELAY:-5}"
+case "${retry_delay}" in
+  '' | *[!0-9]* | 0) retry_delay=5 ;;
+esac
+max_retry_delay="${APPBOX_CALLBACK_MAX_RETRY_DELAY:-60}"
+case "${max_retry_delay}" in
+  '' | *[!0-9]* | 0) max_retry_delay=60 ;;
+esac
+
+while true; do
+  status=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 120 \
+    "${callback_headers[@]}" \
+    -X POST "${callback_base}/v1/apps/installed/${INSTANCE_ID}" 2>/dev/null) \
+    || status=000
+
+  case "${status}" in
+    2??)
+      echo "[appbox-callback] instance ${instance_label}: installed callback accepted"
+      exit 0
+      ;;
+    000 | 408 | 429 | 5??)
+      echo "[appbox-callback] instance ${instance_label}: installed callback got HTTP ${status}, retrying in ${retry_delay}s" >&2
+      sleep "${retry_delay}"
+      retry_delay=$((retry_delay * 2))
+      if [ "${retry_delay}" -gt "${max_retry_delay}" ]; then
+        retry_delay=${max_retry_delay}
+      fi
+      ;;
+    *)
+      echo "[appbox-callback] instance ${instance_label}: installed callback rejected with HTTP ${status}, not retrying" >&2
+      exit 1
+      ;;
+  esac
+done

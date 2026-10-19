@@ -3,8 +3,8 @@
 import subprocess
 import sys
 
-EXPECTED = "repo.cylo.net/rutorrent:5.3.15.3-0.16.24"
-PREVIOUS = "repo.cylo.net/rutorrent@sha256:417626fc0136226ff6f120edfc54ea02e88acd6d8fc41b56fc60400425a73be5"
+EXPECTED = "repo.cylo.net/rutorrent:5.3.15.4-0.16.24"
+PREVIOUS = "repo.cylo.net/rutorrent@sha256:f36435f80dd8b415a03133bcecdefae8104ff2f8e02c6d53301533409bc8472b"
 
 
 def require_absent(image):

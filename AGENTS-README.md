@@ -13,10 +13,10 @@ users, additional plugins, and a custom mobile ruTorrent UI.
 
 ## Current Image State
 
-- Registry tag: `repo.cylo.net/rutorrent:5.3.15.3-0.16.24`
+- Registry tag: `repo.cylo.net/rutorrent:5.3.15.4-0.16.24`
 - Base runtime: `crazymax/alpine-s6:3.24-3.2.3.0`
 - rTorrent / libtorrent: `0.16.24`
-- ruTorrent: `5.3.15` (upstream commit `fe468360f94b02def11bbf67b16316bbe8081380`, catalogue `5.3.15.3`)
+- ruTorrent: `5.3.15` (upstream commit `fe468360f94b02def11bbf67b16316bbe8081380`, catalogue `5.3.15.4`)
 - PHP: `8.5`
 - Entrypoint: `ENTRYPOINT ["/init"]` through s6-overlay.
 - Production architecture: `linux/amd64`.
@@ -47,7 +47,8 @@ Key boot scripts:
 
 - `rootfs/etc/cont-init.d/00-set-passwd.sh` sets initial basic auth from `USERNAME` / `PASSWORD` or `RUTORRENT_USER` / `RUTORRENT_PASSWORD`.
 - `rootfs/etc/cont-init.d/03-config.sh` renders nginx, PHP, rTorrent, and ruTorrent config; creates `/torrents` directories; enables/configures plugins; applies autodl compatibility patches on the live plugin tree.
-- `rootfs/etc/cont-init.d/05-appbox.sh` handles Appbox upgrade migrations, autodl migration, user settings migration, `irssi` and `rtcheck` services, `filemanager-share`, and the installed callback.
+- `rootfs/etc/cont-init.d/05-appbox.sh` handles Appbox upgrade migrations, autodl migration, user settings migration, `irssi` and `rtcheck` services, `filemanager-share`, and marks the installed callback as pending on first boot.
+- `rootfs/etc/services.d/appbox-callback/run` sends the pending installed callback through `rootfs/usr/local/bin/appbox-installed-callback`.
 - `rootfs/moduser.sh` is required by Appbox and updates basic auth for ruTorrent, XML-RPC, and WebDAV.
 - `rootfs/usr/local/lib/rtorrent-web-auth.sh` is the single shared helper for writing htpasswd files.
 
@@ -55,17 +56,35 @@ If you touch password behavior, update the helper rather than duplicating htpass
 
 ## Callback Behavior
 
-When `INSTANCE_ID` is set, `05-appbox.sh` posts to:
+When `INSTANCE_ID` is set, `05-appbox.sh` creates `/etc/appbox_callback_pending`
+on first boot (when `/etc/app_configured` is absent). The `appbox-callback` s6
+service then posts once to:
 
 ```text
 https://api.cylo.net/v1/apps/installed/${INSTANCE_ID}
 ```
 
+The callback runs after cont-init, so nginx, PHP-FPM and rTorrent start whether
+or not it succeeds. Network errors, 408, 429 and 5xx are retried with backoff
+(5s doubling to a 60s cap). Each attempt times out after 120s. Any other status
+is logged and not retried: the API rejects a callback for an instance that is no
+longer waiting for one, and an endless retry loop in cont-init used to keep the
+whole app down. `INSTANCE_ID` can include `?callback_token=...`; the helper logs
+only the numeric ID.
+
 Supported controls:
 
 - `SKIP_APPBOX_CALLBACK=1` for local tests.
-- `CALLBACK_TOKEN` for optional Bearer auth.
+- `CALLBACK_TOKEN`, sent as the `X-Cylo-Callback-Token` header that cylo-api
+  reads. (cylo-api treats a Bearer token as a user session, so the older Bearer
+  header never authenticated the callback.)
 - `APPBOX_CALLBACK_BASE` for alternate callback base URLs.
+- `APPBOX_CALLBACK_RETRY_DELAY` and `APPBOX_CALLBACK_MAX_RETRY_DELAY` for the
+  first retry delay and the cap, in seconds (tests). Non-numeric or zero values
+  fall back to 5 and 60.
+
+`scripts/test-installed-callback.sh` covers the retry, cap, rejection, header
+and logging cases against a local mock API.
 
 Keep the callback path working; Appbox installs remain in "installing" until it succeeds.
 
@@ -183,8 +202,8 @@ ssh appbox@builder.tester2.appboxes.co -p12246 \
   "mkdir -p /home/appbox/builds/docker-rtorrent-rutorrent && \
    tar xzf - -C /home/appbox/builds/docker-rtorrent-rutorrent && \
    cd /home/appbox/builds/docker-rtorrent-rutorrent && \
-   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.3-0.16.24 . && \
-   docker push repo.cylo.net/rutorrent:5.3.15.3-0.16.24"
+   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.4-0.16.24 . && \
+   docker push repo.cylo.net/rutorrent:5.3.15.4-0.16.24"
 ```
 
 Only build, push, or commit when the user explicitly asks. Do not force-push or reset.
@@ -200,7 +219,7 @@ docker run --rm --platform linux/amd64 \
   -p 8080:80 \
   -v rutorrent-torrents:/torrents \
   -v rutorrent-passwd:/passwd \
-  repo.cylo.net/rutorrent:5.3.15.3-0.16.24
+  repo.cylo.net/rutorrent:5.3.15.4-0.16.24
 ```
 
 Open `http://localhost:8080/`. Force mobile mode with `http://localhost:8080/index.html?mobile=1`.
@@ -267,3 +286,15 @@ The ratio column text runs from red at 0 through orange and green to blue at 30
 and above. Upstream only recolours when rows are redrawn, so the image adds a
 `syncDOM()` hook to update visible rows when their ratio changes. Everything else
 matches `5.3.15.2`.
+
+## Installed callback (5.3.15.4)
+
+Catalogue `5.3.15.4` stops the Appbox installed callback from blocking startup.
+`05-appbox.sh` used to retry it forever inside cont-init, so a rejected callback
+(for example a 401 after a migration had already cleared the instance's token)
+left nginx, PHP-FPM and rTorrent stopped and the app returned 502. The callback
+now runs from the `appbox-callback` s6 service after the other services start,
+retries only network errors, 408, 429 and 5xx, and sends `CALLBACK_TOKEN` as
+`X-Cylo-Callback-Token`. `scripts/session-release-gate.py` checks that the app is
+healthy and sends exactly one callback when the API rejects it. rTorrent,
+libtorrent, ruTorrent and plugins are unchanged from `5.3.15.3`.
