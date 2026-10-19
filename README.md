@@ -378,7 +378,7 @@ Run the exact-image release gate on the dedicated builder before publishing:
 python3 scripts/session-release-gate.py repo.cylo.net/rutorrent:5.3.15.4-0.16.24
 ```
 
-The current upgrade gate starts from the immutable 5.3.15.2-0.16.24 image and verifies
+The current upgrade gate starts from the immutable 5.3.15.3-0.16.24 image and verifies
 torrent sessions, custom configuration, authentication and data retention.
 
 ## Finished time compatibility
