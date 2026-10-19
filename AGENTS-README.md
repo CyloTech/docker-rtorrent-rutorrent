@@ -47,7 +47,8 @@ Key boot scripts:
 
 - `rootfs/etc/cont-init.d/00-set-passwd.sh` sets initial basic auth from `USERNAME` / `PASSWORD` or `RUTORRENT_USER` / `RUTORRENT_PASSWORD`.
 - `rootfs/etc/cont-init.d/03-config.sh` renders nginx, PHP, rTorrent, and ruTorrent config; creates `/torrents` directories; enables/configures plugins; applies autodl compatibility patches on the live plugin tree.
-- `rootfs/etc/cont-init.d/05-appbox.sh` handles Appbox upgrade migrations, autodl migration, user settings migration, `irssi` and `rtcheck` services, `filemanager-share`, and the installed callback.
+- `rootfs/etc/cont-init.d/05-appbox.sh` handles Appbox upgrade migrations, autodl migration, user settings migration, `irssi` and `rtcheck` services, `filemanager-share`, and marks the installed callback as pending on first boot.
+- `rootfs/etc/services.d/appbox-callback/run` sends the pending installed callback through `rootfs/usr/local/bin/appbox-installed-callback`.
 - `rootfs/moduser.sh` is required by Appbox and updates basic auth for ruTorrent, XML-RPC, and WebDAV.
 - `rootfs/usr/local/lib/rtorrent-web-auth.sh` is the single shared helper for writing htpasswd files.
 
@@ -55,17 +56,27 @@ If you touch password behavior, update the helper rather than duplicating htpass
 
 ## Callback Behavior
 
-When `INSTANCE_ID` is set, `05-appbox.sh` posts to:
+When `INSTANCE_ID` is set, `05-appbox.sh` creates `/etc/appbox_callback_pending`
+on first boot (when `/etc/app_configured` is absent). The `appbox-callback` s6
+service then posts once to:
 
 ```text
 https://api.cylo.net/v1/apps/installed/${INSTANCE_ID}
 ```
+
+The callback runs after cont-init, so nginx, PHP-FPM and rTorrent start whether
+or not it succeeds. Network errors, 408, 429 and 5xx are retried with backoff
+(5s doubling to a 60s cap). Any other status is logged and not retried: the API
+rejects a callback for an instance that is no longer waiting for one, and an
+endless retry loop in cont-init used to keep the whole app down. `INSTANCE_ID`
+can include `?callback_token=...`; the helper logs only the numeric ID.
 
 Supported controls:
 
 - `SKIP_APPBOX_CALLBACK=1` for local tests.
 - `CALLBACK_TOKEN` for optional Bearer auth.
 - `APPBOX_CALLBACK_BASE` for alternate callback base URLs.
+- `APPBOX_CALLBACK_RETRY_DELAY` for the first retry delay in seconds (tests).
 
 Keep the callback path working; Appbox installs remain in "installing" until it succeeds.
 

@@ -486,27 +486,9 @@ if [ -z "${INSTANCE_ID:-}" ]; then
   exit 0
 fi
 
-callback_installed() {
-  if [ "${SKIP_APPBOX_CALLBACK:-0}" = "1" ]; then
-    return 0
-  fi
-
-  CALLBACK_BASE="${APPBOX_CALLBACK_BASE:-https://api.cylo.net}"
-  callback_headers=(
-    -H "Accept: application/json"
-    -H "Content-Type:application/json"
-  )
-  if [ -n "${CALLBACK_TOKEN:-}" ]; then
-    callback_headers+=(-H "Authorization: Bearer ${CALLBACK_TOKEN}")
-  fi
-  until curl -fsS -o /dev/null \
-    "${callback_headers[@]}" \
-    -X POST "${CALLBACK_BASE}/v1/apps/installed/${INSTANCE_ID}"; do
-    sleep 5
-  done
-}
-
 if [ ! -f /etc/app_configured ]; then
   touch /etc/app_configured
-  callback_installed
+  # The appbox-callback service sends the installed callback once services
+  # are running, so a slow or rejected callback cannot block startup.
+  touch /etc/appbox_callback_pending
 fi
