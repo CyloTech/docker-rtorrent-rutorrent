@@ -66,17 +66,25 @@ https://api.cylo.net/v1/apps/installed/${INSTANCE_ID}
 
 The callback runs after cont-init, so nginx, PHP-FPM and rTorrent start whether
 or not it succeeds. Network errors, 408, 429 and 5xx are retried with backoff
-(5s doubling to a 60s cap). Any other status is logged and not retried: the API
-rejects a callback for an instance that is no longer waiting for one, and an
-endless retry loop in cont-init used to keep the whole app down. `INSTANCE_ID`
-can include `?callback_token=...`; the helper logs only the numeric ID.
+(5s doubling to a 60s cap). Each attempt times out after 120s. Any other status
+is logged and not retried: the API rejects a callback for an instance that is no
+longer waiting for one, and an endless retry loop in cont-init used to keep the
+whole app down. `INSTANCE_ID` can include `?callback_token=...`; the helper logs
+only the numeric ID.
 
 Supported controls:
 
 - `SKIP_APPBOX_CALLBACK=1` for local tests.
-- `CALLBACK_TOKEN` for optional Bearer auth.
+- `CALLBACK_TOKEN`, sent as the `X-Cylo-Callback-Token` header that cylo-api
+  reads. (cylo-api treats a Bearer token as a user session, so the older Bearer
+  header never authenticated the callback.)
 - `APPBOX_CALLBACK_BASE` for alternate callback base URLs.
-- `APPBOX_CALLBACK_RETRY_DELAY` for the first retry delay in seconds (tests).
+- `APPBOX_CALLBACK_RETRY_DELAY` and `APPBOX_CALLBACK_MAX_RETRY_DELAY` for the
+  first retry delay and the cap, in seconds (tests). Non-numeric or zero values
+  fall back to 5 and 60.
+
+`scripts/test-installed-callback.sh` covers the retry, cap, rejection, header
+and logging cases against a local mock API.
 
 Keep the callback path working; Appbox installs remain in "installing" until it succeeds.
 

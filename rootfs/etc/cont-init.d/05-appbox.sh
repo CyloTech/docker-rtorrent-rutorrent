@@ -487,8 +487,9 @@ if [ -z "${INSTANCE_ID:-}" ]; then
 fi
 
 if [ ! -f /etc/app_configured ]; then
-  touch /etc/app_configured
   # The appbox-callback service sends the installed callback once services
-  # are running, so a slow or rejected callback cannot block startup.
+  # are running, so a slow or rejected callback cannot block startup. Mark it
+  # pending first so an interruption here cannot lose the callback.
   touch /etc/appbox_callback_pending
+  touch /etc/app_configured
 fi

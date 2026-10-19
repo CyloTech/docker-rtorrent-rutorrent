@@ -391,7 +391,8 @@ RUN set -eux \
   && curl -fsSL -o /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-${gosuArch}" \
   && chmod +x /usr/local/bin/gosu \
   && gosu nobody true \
-  && chmod +x /moduser.sh /etc/cont-init.d/*.sh /usr/local/bin/rtcheck
+  && chmod +x /moduser.sh /etc/cont-init.d/*.sh /usr/local/bin/rtcheck \
+    /usr/local/bin/appbox-installed-callback /etc/services.d/appbox-callback/run
 
 VOLUME [ "/data", "/downloads", "/passwd" ]
 ENTRYPOINT [ "/init" ]
