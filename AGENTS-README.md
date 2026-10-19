@@ -13,10 +13,10 @@ users, additional plugins, and a custom mobile ruTorrent UI.
 
 ## Current Image State
 
-- Registry tag: `repo.cylo.net/rutorrent:5.3.15.3-0.16.24`
+- Registry tag: `repo.cylo.net/rutorrent:5.3.15.4-0.16.24`
 - Base runtime: `crazymax/alpine-s6:3.24-3.2.3.0`
 - rTorrent / libtorrent: `0.16.24`
-- ruTorrent: `5.3.15` (upstream commit `fe468360f94b02def11bbf67b16316bbe8081380`, catalogue `5.3.15.3`)
+- ruTorrent: `5.3.15` (upstream commit `fe468360f94b02def11bbf67b16316bbe8081380`, catalogue `5.3.15.4`)
 - PHP: `8.5`
 - Entrypoint: `ENTRYPOINT ["/init"]` through s6-overlay.
 - Production architecture: `linux/amd64`.
@@ -202,8 +202,8 @@ ssh appbox@builder.tester2.appboxes.co -p12246 \
   "mkdir -p /home/appbox/builds/docker-rtorrent-rutorrent && \
    tar xzf - -C /home/appbox/builds/docker-rtorrent-rutorrent && \
    cd /home/appbox/builds/docker-rtorrent-rutorrent && \
-   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.3-0.16.24 . && \
-   docker push repo.cylo.net/rutorrent:5.3.15.3-0.16.24"
+   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.4-0.16.24 . && \
+   docker push repo.cylo.net/rutorrent:5.3.15.4-0.16.24"
 ```
 
 Only build, push, or commit when the user explicitly asks. Do not force-push or reset.
@@ -219,7 +219,7 @@ docker run --rm --platform linux/amd64 \
   -p 8080:80 \
   -v rutorrent-torrents:/torrents \
   -v rutorrent-passwd:/passwd \
-  repo.cylo.net/rutorrent:5.3.15.3-0.16.24
+  repo.cylo.net/rutorrent:5.3.15.4-0.16.24
 ```
 
 Open `http://localhost:8080/`. Force mobile mode with `http://localhost:8080/index.html?mobile=1`.
@@ -286,3 +286,15 @@ The ratio column text runs from red at 0 through orange and green to blue at 30
 and above. Upstream only recolours when rows are redrawn, so the image adds a
 `syncDOM()` hook to update visible rows when their ratio changes. Everything else
 matches `5.3.15.2`.
+
+## Installed callback (5.3.15.4)
+
+Catalogue `5.3.15.4` stops the Appbox installed callback from blocking startup.
+`05-appbox.sh` used to retry it forever inside cont-init, so a rejected callback
+(for example a 401 after a migration had already cleared the instance's token)
+left nginx, PHP-FPM and rTorrent stopped and the app returned 502. The callback
+now runs from the `appbox-callback` s6 service after the other services start,
+retries only network errors, 408, 429 and 5xx, and sends `CALLBACK_TOKEN` as
+`X-Cylo-Callback-Token`. `scripts/session-release-gate.py` checks that the app is
+healthy and sends exactly one callback when the API rejects it. rTorrent,
+libtorrent, ruTorrent and plugins are unchanged from `5.3.15.3`.

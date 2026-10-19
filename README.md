@@ -8,7 +8,7 @@ file manager plugins, WebDAV, and a refreshed mobile ruTorrent UI.
 The current Appbox image tag is:
 
 ```bash
-repo.cylo.net/rutorrent:5.3.15.3-0.16.24
+repo.cylo.net/rutorrent:5.3.15.4-0.16.24
 ```
 
 ## Current Versions
@@ -207,7 +207,7 @@ Production builds target `linux/amd64`.
 Local build:
 
 ```bash
-docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.3-0.16.24 .
+docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.4-0.16.24 .
 ```
 
 Remote builder currently used for release builds:
@@ -224,8 +224,8 @@ ssh appbox@builder.tester2.appboxes.co -p12246 \
   "mkdir -p /home/appbox/builds/docker-rtorrent-rutorrent && \
    tar xzf - -C /home/appbox/builds/docker-rtorrent-rutorrent && \
    cd /home/appbox/builds/docker-rtorrent-rutorrent && \
-   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.3-0.16.24 . && \
-   docker push repo.cylo.net/rutorrent:5.3.15.3-0.16.24"
+   docker build --platform linux/amd64 -t repo.cylo.net/rutorrent:5.3.15.4-0.16.24 . && \
+   docker push repo.cylo.net/rutorrent:5.3.15.4-0.16.24"
 ```
 
 Only push a registry tag when the user explicitly asks for it.
@@ -241,7 +241,7 @@ docker run --rm --platform linux/amd64 \
   -p 8080:80 \
   -v rutorrent-torrents:/torrents \
   -v rutorrent-passwd:/passwd \
-  repo.cylo.net/rutorrent:5.3.15.3-0.16.24
+  repo.cylo.net/rutorrent:5.3.15.4-0.16.24
 ```
 
 Open `http://localhost:8080/` and sign in with the provided credentials. Force mobile
@@ -375,7 +375,7 @@ graceful shutdown and persisted configuration behavior are retained.
 Run the exact-image release gate on the dedicated builder before publishing:
 
 ```sh
-python3 scripts/session-release-gate.py repo.cylo.net/rutorrent:5.3.15.3-0.16.24
+python3 scripts/session-release-gate.py repo.cylo.net/rutorrent:5.3.15.4-0.16.24
 ```
 
 The current upgrade gate starts from the immutable 5.3.15.2-0.16.24 image and verifies
@@ -414,3 +414,15 @@ The ratio column text runs from red at 0 through orange and green to blue at 30
 and above. Upstream only recolours when rows are redrawn, so the image adds a
 `syncDOM()` hook to update visible rows when their ratio changes. Everything else
 matches `5.3.15.2`.
+
+## Installed callback (5.3.15.4)
+
+Catalogue `5.3.15.4` stops the Appbox installed callback from blocking startup.
+`05-appbox.sh` used to retry it forever inside cont-init, so a rejected callback
+(for example a 401 after a migration had already cleared the instance's token)
+left nginx, PHP-FPM and rTorrent stopped and the app returned 502. The callback
+now runs from the `appbox-callback` s6 service after the other services start,
+retries only network errors, 408, 429 and 5xx, and sends `CALLBACK_TOKEN` as
+`X-Cylo-Callback-Token`. `scripts/session-release-gate.py` checks that the app is
+healthy and sends exactly one callback when the API rejects it. rTorrent,
+libtorrent, ruTorrent and plugins are unchanged from `5.3.15.3`.

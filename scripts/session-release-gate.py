@@ -10,8 +10,8 @@ import subprocess
 import sys
 import time
 
-EXPECTED = "repo.cylo.net/rutorrent:5.3.15.3-0.16.24"
-PREVIOUS = "repo.cylo.net/rutorrent@sha256:417626fc0136226ff6f120edfc54ea02e88acd6d8fc41b56fc60400425a73be5"
+EXPECTED = "repo.cylo.net/rutorrent:5.3.15.4-0.16.24"
+PREVIOUS = "repo.cylo.net/rutorrent@sha256:f36435f80dd8b415a03133bcecdefae8104ff2f8e02c6d53301533409bc8472b"
 assert len(sys.argv) == 2 and sys.argv[1] == EXPECTED, "Unexpected image reference"
 RUN = "rutorrent-upstream-gate-" + secrets.token_hex(6)
 LABEL = "appbox.release-gate=" + RUN
@@ -71,11 +71,11 @@ def wait_healthy(container):
     raise RuntimeError(container + " did not become healthy")
 
 
-def run_app(name, image, phase, storage, allocation="1", interval=None):
+def run_app(name, image, phase, storage, allocation="1", interval=None, callback_base="http://callback:8123"):
     containers.append(name)
     args = ["docker", "run", "-d", "--platform", "linux/amd64", "--name", name, "--label", LABEL,
             "--network", network, "-e", "USERNAME=releasegate", "-e", "PASSWORD",
-            "-e", "INSTANCE_ID=" + phase, "-e", "APPBOX_CALLBACK_BASE=http://callback:8123",
+            "-e", "INSTANCE_ID=" + phase, "-e", "APPBOX_CALLBACK_BASE=" + callback_base,
             "-e", "WAN_IP=127.0.0.1", "-e", "RT_INC_PORT=51000", "-e", "RT_DHT_PORT=51001", "-e", "XMLRPC_SIZE_LIMIT=10M"]
     # Fresh installs exercise the image fallback; upgrades exercise catalogue values.
     if phase == "upgrade":
@@ -90,6 +90,18 @@ def run_app(name, image, phase, storage, allocation="1", interval=None):
     wait_healthy(name)
     wait_plugins(name)
     print("Healthy disposable container: " + phase, flush=True)
+
+
+def wait_callbacks(server, expected, timeout=180):
+    # The installed callback runs from an s6 service after startup, so poll.
+    deadline = time.monotonic() + timeout
+    while True:
+        paths = command(["docker", "exec", server, "sh", "-c", "cat /tmp/callbacks 2>/dev/null || true"]).splitlines()
+        if all(paths.count(path) >= count for path, count in expected.items()):
+            return paths
+        if time.monotonic() > deadline:
+            raise RuntimeError("Installed callbacks not received: " + json.dumps(paths))
+        time.sleep(2)
 
 
 def inside(container, mode, name="appbox-watch-gate-check"):
@@ -212,8 +224,29 @@ HTTPServer(('0.0.0.0',8123),Handler).serve_forever()
 """
 command(["docker", "run", "-d", "--name", callback, "--label", LABEL, "--network", network,
          "--network-alias", "callback", "--entrypoint", "python3", EXPECTED, "-u", "-c", callback_code])
+# A second API that rejects every installed callback, as cylo-api does with a
+# 401 once an instance's callback token has been cleared.
+callback_reject = RUN + "-callback-reject"
+containers.append(callback_reject)
+command(["docker", "run", "-d", "--name", callback_reject, "--label", LABEL, "--network", network,
+         "--network-alias", "callback-reject", "--entrypoint", "python3", EXPECTED, "-u", "-c",
+         callback_code.replace("send_response(200)", "send_response(401)")])
 
 print('Release resources: '+RUN,flush=True)
+# A rejected installed callback must not keep the web UI or rTorrent down.
+rejected=RUN+'-rejected'
+run_app(rejected,EXPECTED,'rejected',[],callback_base='http://callback-reject:8123')
+wait_callbacks(callback_reject,{'/v1/apps/installed/rejected':1})
+time.sleep(20)
+rejected_calls=command(['docker','exec',callback_reject,'cat','/tmp/callbacks']).splitlines()
+assert rejected_calls==['/v1/apps/installed/rejected'],rejected_calls
+rejected_logs=subprocess.run(['docker','logs',rejected],capture_output=True,text=True,timeout=60)
+assert 'installed callback rejected with HTTP 401, not retrying' in rejected_logs.stdout+rejected_logs.stderr
+command(['docker','restart','--time','30',rejected],timeout=600);wait_healthy(rejected)
+time.sleep(10)
+assert command(['docker','exec',callback_reject,'cat','/tmp/callbacks']).splitlines()==['/v1/apps/installed/rejected']
+command(['docker','rm','-fv',rejected])
+print('PASS rejected installed callback: app healthy, one request, no retry, none after restart',flush=True)
 # Prepare an existing volume using the current catalogue image.
 storage=[]
 for suffix,target in (('torrents','/torrents'),('passwd','/passwd')):
@@ -322,7 +355,7 @@ time.sleep(35)
 assert session(upgraded,'status')['hashing']==0
 assert inside(upgraded,'status','appbox-watch-gate-session-existing')['present']
 print('PASS no forced startup hash queue; existing torrent retained',flush=True)
-callbacks=command(['docker','exec',callback,'cat','/tmp/callbacks']).splitlines()
+callbacks=wait_callbacks(callback,{'/v1/apps/installed/fresh':1,'/v1/apps/installed/upgrade':1})
 assert callbacks.count('/v1/apps/installed/fresh')==1 and callbacks.count('/v1/apps/installed/upgrade')==1,callbacks
 print('PASS installation callbacks; restarts do not duplicate callbacks',flush=True)
 command([sys.executable,str(Path(__file__).with_name('registry-check.py')),EXPECTED])
