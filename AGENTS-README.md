@@ -183,20 +183,26 @@ retained config before removing the obsolete stock UTF-8 directive.
 
 `Dockerfile.php-security` builds catalogue `5.3.15.5` / tag `5.3.15.5-0.16.24`
 from the immutable 5.3.15.4 image digest and upgrades only its php85 packages
-from Alpine 3.24, for the PHP security release of 21 October 2026. The build
-fails while Alpine's v3.24 community index still has php85 older than
-`PHP85_MIN_VERSION` (8.5.12). `Dockerfile` is unchanged and still describes
-the full 5.3.15.4 build; do not use it for 5.3.15.5.
+to 8.5.12-r0, for the PHP security release of 21 October 2026. Alpine's v3.24
+index did not have 8.5.12 yet, so the packages are our own build of Alpine's
+community/php85 APKBUILD, signed with our own key and published as the
+package artifact image `repo.cylo.net/php-artifacts:php85-8.5.12-r0-alpine3.24`
+(pinned by digest in `PHP85_ARTIFACT`; recipe, gate and provenance in
+`release/php85-artifact/`). The upgrade reads only that repository, with no
+network and its own key directory. `Dockerfile` is unchanged and still
+describes the full 5.3.15.4 build; do not use it for 5.3.15.5.
 
 Release gate: `release/verify-image.sh <image>` (exact image as its only
 argument). It checks that the image is the 5.3.15.4 layers plus one layer, that
-only php85 packages changed, the PHP floor, identical PHP modules and config,
+only php85 packages changed and every one is the artifact's build (installed
+package checksums against the artifact APKINDEX), the PHP floor, identical PHP
+modules and config,
 multipart uploads through the PHP CLI server and through nginx + php-fpm,
 `nginx -t` and `php-fpm85 -t`, a .torrent upload, `/no-auth/share.php`, a fresh
 install, an upgrade from 5.3.15.4 on the same volumes, and that the registry
 definitively lacks the release tag. Build from a `git archive` of the pushed
-commit in a fresh `mktemp` directory under `/home/appbox/builds` on
-`builder.grant.appboxes.co`:
+commit in a fresh `mktemp` directory under `/home/appbox/builds` on the
+dedicated builder:
 
 ```bash
 docker build --pull --no-cache --platform linux/amd64 \

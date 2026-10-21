@@ -1,6 +1,7 @@
 #!/bin/sh
 # Release gate for ruTorrent 5.3.15.5 (Dockerfile.php-security): the 5.3.15.4
-# image with only its php85 packages upgraded.
+# image with only its php85 packages upgraded, from the self-built php85
+# package artifact image (release/php85-artifact).
 #
 # Usage: release/verify-image.sh <image>
 #
@@ -24,6 +25,9 @@ RELEASE_VERSION="5.3.15.5"
 BASE_REF="repo.cylo.net/rutorrent@sha256:d0d5e6f7577aef143f171f4d05995c045122380311396694b430ec758947d5ee"
 RUTORRENT_REVISION="fe468360f94b02def11bbf67b16316bbe8081380"
 PHP85_FLOOR="8.5.12"
+# The php85 packages must be exactly these, from this artifact image.
+PHP85_PACKAGE_VERSION="8.5.12-r0"
+PHP85_ARTIFACT_REF="repo.cylo.net/php-artifacts@sha256:c810e2dbf5e5ff8225acc76d816fc76a00495430e9344ccf14acc632d2ad371d"
 HEALTH_TIMEOUT=900
 
 fail() {
@@ -179,6 +183,12 @@ docker image inspect "$BASE_REF" >/dev/null 2>&1 || docker pull --platform linux
     || fail "ruTorrent revision label differs from 5.3.15.4"
 [ "$(docker image inspect --format '{{index .Config.Labels "io.appbox.rutorrent.base-image"}}' "$image_ref")" = "$BASE_REF" ] \
     || fail "base-image label is not the 5.3.15.4 digest"
+case "$PHP85_ARTIFACT_REF" in
+    repo.cylo.net/php-artifacts@sha256:????????????????????????????????????????????????????????????????) ;;
+    *) fail "PHP85_ARTIFACT_REF is not a pinned digest: $PHP85_ARTIFACT_REF" ;;
+esac
+[ "$(docker image inspect --format '{{index .Config.Labels "io.appbox.php85-artifact"}}' "$image_ref")" = "$PHP85_ARTIFACT_REF" ] \
+    || fail "php85-artifact label is not $PHP85_ARTIFACT_REF"
 for field in '{{json .Config.Entrypoint}}' '{{json .Config.Cmd}}' '{{json .Config.Healthcheck}}' '{{json .Config.Env}}' '{{json .Config.User}}' '{{json .Config.ExposedPorts}}' '{{json .Config.Volumes}}' '{{json .Config.WorkingDir}}'; do
     [ "$(docker image inspect --format "$field" "$image_ref")" = "$(docker image inspect --format "$field" "$BASE_REF")" ] \
         || fail "image config $field differs from 5.3.15.4"
@@ -229,6 +239,32 @@ if [ "$gate_mode" = release ]; then
 fi
 php85_builds=$(grep -E '^php85(-[a-z0-9]+)*-[0-9]' "$work_dir/image-packages" | sed -E 's/^php85(-[a-z0-9]+)*-//' | sort -u)
 [ "$(printf '%s\n' "$php85_builds" | wc -l)" -eq 1 ] || fail "php85 packages come from different builds: $php85_builds"
+if [ "$gate_mode" = release ]; then
+    [ "$php85_builds" = "$PHP85_PACKAGE_VERSION" ] || fail "php85 packages are $php85_builds, expected $PHP85_PACKAGE_VERSION"
+fi
+
+echo "== php85 packages come from $PHP85_ARTIFACT_REF"
+# Compare the installed database's package identity (C:, the checksum of
+# the signed control section) with the artifact repository's APKINDEX.
+docker image inspect "$PHP85_ARTIFACT_REF" >/dev/null 2>&1 || docker pull -q --platform linux/amd64 "$PHP85_ARTIFACT_REF" >/dev/null
+artifact_container=$(docker create --label "$gate_label" "$PHP85_ARTIFACT_REF" /none)
+gate_containers="$gate_containers $artifact_container"
+docker cp "$artifact_container:/packages/community/x86_64/APKINDEX.tar.gz" "$work_dir/artifact-APKINDEX.tar.gz"
+docker rm "$artifact_container" >/dev/null
+tar -xzOf "$work_dir/artifact-APKINDEX.tar.gz" APKINDEX \
+    | awk -F: '/^C:/{c=substr($0,3)} /^P:/{p=$2} /^V:/{v=$2} /^$/{if(p!="")print p "-" v " " c; p=""} END{if(p!="")print p "-" v " " c}' \
+    | sort > "$work_dir/artifact-identities"
+in_image "$image_ref" cat /lib/apk/db/installed \
+    | awk -F: '/^C:/{c=substr($0,3)} /^P:/{p=$2} /^V:/{v=$2} /^$/{if(p!="")print p "-" v " " c; p=""} END{if(p!="")print p "-" v " " c}' \
+    | grep -E '^php85(-[a-z0-9]+)*-[0-9]' | sort > "$work_dir/image-php85-identities"
+[ -s "$work_dir/image-php85-identities" ] || fail "no php85 packages in the installed database"
+not_from_artifact=$(comm -23 "$work_dir/image-php85-identities" "$work_dir/artifact-identities")
+if [ -n "$not_from_artifact" ]; then
+    [ "$gate_mode" = trial ] || fail "php85 packages not from the artifact: $(printf '%s' "$not_from_artifact" | tr '\n' ' ')"
+    echo "  TRIAL: $(printf '%s\n' "$not_from_artifact" | wc -l) php85 package(s) not from the artifact"
+else
+    echo "  $(wc -l < "$work_dir/image-php85-identities") php85 packages match the artifact APKINDEX checksums"
+fi
 
 echo "== PHP version (floor $php85_floor)"
 php85_version=$(in_image "$image_ref" php85 -r 'echo PHP_VERSION;')
