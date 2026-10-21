@@ -1,0 +1,15 @@
+# Package artifact image: the self-built, signed php85 .apk repository,
+# its public key, and the README/manifest. Nothing runs from this image;
+# release Dockerfiles mount or copy it from its pinned digest.
+#
+# Build context (assembled on the builder, see README):
+#   packages/community/x86_64/*.apk, APKINDEX.tar.gz   from work/out
+#   keys/<key>.rsa.pub                                 from work/out
+#   SHA256SUMS, build-info.txt, build-environment-packages.txt
+#   README.md                                          the committed README for this build
+#
+# Gate: release/php85-artifact/verify-artifact.sh <image>
+FROM scratch
+COPY packages/ /packages/
+COPY keys/ /keys/
+COPY README.md SHA256SUMS build-info.txt build-environment-packages.txt /
