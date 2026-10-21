@@ -40,8 +40,7 @@ image:
   name: "rutorrent"
   version: "5.3.15.5"
   tag: "5.3.15.5-0.16.24"
-  # Still the 5.3.15.4 digest until the 5.3.15.5 push is recorded (RELEASE-5.3.15.5.md).
-  digest: "repo.cylo.net/rutorrent@sha256:d0d5e6f7577aef143f171f4d05995c045122380311396694b430ec758947d5ee"
+  digest: "repo.cylo.net/rutorrent@sha256:0f967374ba2396278b15a6c00e8330156d7daf6a14475071f88d5d88b3e9783b"
 
 container:
   cmd: null
