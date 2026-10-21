@@ -186,10 +186,16 @@ done
 docker image inspect --format '{{range .RootFS.Layers}}{{println .}}{{end}}' "$BASE_REF" | sed '/^$/d' > "$work_dir/base-layers"
 docker image inspect --format '{{range .RootFS.Layers}}{{println .}}{{end}}' "$image_ref" | sed '/^$/d' > "$work_dir/image-layers"
 base_layer_count=$(wc -l < "$work_dir/base-layers")
-[ "$(wc -l < "$work_dir/image-layers")" -eq $((base_layer_count + 1)) ] \
-    && head -n "$base_layer_count" "$work_dir/image-layers" | cmp -s - "$work_dir/base-layers" \
-    || fail "image is not the 5.3.15.4 layers plus exactly one layer"
-echo "5.3.15.4 layers ($base_layer_count) plus one PHP layer; entrypoint, healthcheck and environment unchanged"
+extra_layers=$(( $(wc -l < "$work_dir/image-layers") - base_layer_count ))
+head -n "$base_layer_count" "$work_dir/image-layers" | cmp -s - "$work_dir/base-layers" \
+    || fail "image does not start with the 5.3.15.4 layers"
+# A release adds exactly one layer (the php85 upgrade). A trial against
+# today's index changes no file, and BuildKit then adds no layer.
+case "$gate_mode:$extra_layers" in
+    release:1|trial:0|trial:1) ;;
+    *) fail "image adds $extra_layers layer(s) to 5.3.15.4; expected one" ;;
+esac
+echo "5.3.15.4 layers ($base_layer_count) plus $extra_layers; entrypoint, healthcheck and environment unchanged"
 
 echo "== Packages (only php85 may change)"
 in_image "$BASE_REF" apk info -v | sort > "$work_dir/base-packages"
@@ -214,6 +220,13 @@ while read -r changed; do
 done < "$work_dir/changed-packages"
 [ -z "$unexpected" ] || fail "non-PHP packages changed:$unexpected (review, then list each as package:<name> in release/allowed-changes.txt)"
 [ -s "$work_dir/changed-packages" ] || echo "  (no package changed)"
+if [ "$gate_mode" = release ]; then
+    # Every installed php85 package must have moved to the new build.
+    grep -E '^php85(-[a-z0-9]+)*-[0-9]' "$work_dir/base-packages" | sed -E 's/-[0-9][^-]*-r[0-9]+$//' | sort > "$work_dir/php85-names"
+    grep -E '^php85(-[a-z0-9]+)*-[0-9]' "$work_dir/changed-packages" | sed -E 's/-[0-9][^-]*-r[0-9]+$//' | sort > "$work_dir/php85-changed"
+    cmp -s "$work_dir/php85-names" "$work_dir/php85-changed" \
+        || fail "not every php85 package was upgraded: $(comm -23 "$work_dir/php85-names" "$work_dir/php85-changed" | tr '\n' ' ')"
+fi
 php85_builds=$(grep -E '^php85(-[a-z0-9]+)*-[0-9]' "$work_dir/image-packages" | sed -E 's/^php85(-[a-z0-9]+)*-//' | sort -u)
 [ "$(printf '%s\n' "$php85_builds" | wc -l)" -eq 1 ] || fail "php85 packages come from different builds: $php85_builds"
 
