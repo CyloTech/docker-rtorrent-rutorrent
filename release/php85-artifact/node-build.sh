@@ -9,6 +9,10 @@
 #
 # Usage: node-build.sh <build-dir> <php-version>
 #
+# The container joins the daemon's default bridge network (the bridge
+# network with com.docker.network.bridge.default_bridge=true, bridge_1 on
+# Cylo nodes, whose dockerd runs with --bridge=none) for apk downloads.
+#
 # The build runs detached in a throwaway alpine:3.24 container on the host
 # docker with --cpu-shares 256, so it only uses idle CPU. Progress is in
 # work/build.log; work/exit-code appears when it finishes. The operator
@@ -47,6 +51,14 @@ case "$remap" in
     *) ;;
 esac
 
+build_network=""
+for network in $(docker network ls --filter driver=bridge --format '{{.Name}}'); do
+    if [ "$(docker network inspect --format '{{index .Options "com.docker.network.bridge.default_bridge"}}' "$network")" = true ]; then
+        build_network=$network
+    fi
+done
+[ -n "$build_network" ] || { echo "no default bridge network found" >&2; exit 1; }
+
 if docker image inspect "$ALPINE_REF" >/dev/null 2>&1; then
     echo "image already present: $ALPINE_REF" > "$build_dir/image-was-present"
 else
@@ -54,7 +66,7 @@ else
 fi
 
 docker run -d --name "$container" --label "cylo.php-build=$suffix" \
-    --cpu-shares 256 \
+    --cpu-shares 256 --network "$build_network" \
     -v "$build_dir/work:/work" -v "$build_dir/recipe:/recipe:ro" \
     "$ALPINE_REF" \
     sh -c 'sh /recipe/build-in-alpine.sh > /work/build.log 2>&1; echo $? > /work/exit-code'
