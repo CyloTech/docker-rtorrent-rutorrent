@@ -204,6 +204,11 @@ existing Appbox installs.
 
 Production builds target `linux/amd64`.
 
+Catalogue `5.3.15.5` (`repo.cylo.net/rutorrent:5.3.15.5-0.16.24`) is the
+5.3.15.4 image with only its php85 packages upgraded for the PHP security
+release of 21 October 2026. Build it with `-f Dockerfile.php-security` and gate
+it with `release/verify-image.sh`; see `RELEASE-5.3.15.5.md`.
+
 Local build:
 
 ```bash

@@ -1,0 +1,10 @@
+# Reviewed exceptions for release/verify-image.sh.
+#
+# The gate fails when the image changes anything besides the php85 packages.
+# If Alpine's patched php85 strictly requires a newer library, or replaces a
+# packaged config file, review the change and list it here, one per line:
+#
+#   package:<apk package name>
+#   file:<absolute path>
+#
+# Commit the change; the release must be built from that pushed commit.

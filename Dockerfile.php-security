@@ -1,0 +1,47 @@
+# ruTorrent 5.3.15.5: the published 5.3.15.4 image with only its php85
+# packages upgraded from Alpine 3.24 for the PHP security release of
+# 21 October 2026 (multipart/form-data parsing).
+#
+# 5.3.15.4 was built from commit f06eb117225f40e69c4d8f23c08cf9a3df22494f
+# (RELEASE-5.3.15.4.md). Starting from its immutable digest keeps rTorrent,
+# libtorrent, ruTorrent, the plugins, rootfs, configuration and every other
+# Alpine package exactly as deployed. A full rebuild of Dockerfile would also
+# pull in unpinned plugin, pip, cpan and GeoIP changes.
+#
+# The build fails unless Alpine's v3.24 index already has php85 at or above
+# PHP85_MIN_VERSION, so it cannot silently ship the unpatched 8.5.11-r0.
+# release/verify-image.sh is the release gate for this image.
+#
+# Release build (dedicated builder, from the exact pushed commit):
+#   docker build --pull --no-cache --platform linux/amd64 \
+#     -f Dockerfile.php-security -t repo.cylo.net/rutorrent:5.3.15.5-0.16.24 .
+
+ARG PHP85_MIN_VERSION=8.5.12
+
+FROM repo.cylo.net/rutorrent@sha256:d0d5e6f7577aef143f171f4d05995c045122380311396694b430ec758947d5ee
+
+ARG PHP85_MIN_VERSION
+LABEL io.appbox.rutorrent.base-image="repo.cylo.net/rutorrent@sha256:d0d5e6f7577aef143f171f4d05995c045122380311396694b430ec758947d5ee"
+
+# Upgrade only the installed php85 packages (and whatever they strictly
+# require), then fail unless PHP is at the floor, every php85 package comes
+# from the same build and the FPM configuration still loads.
+RUN set -eu; \
+    case "$PHP85_MIN_VERSION" in \
+        [0-9]*.[0-9]*.[0-9]*) ;; \
+        *) echo "Invalid PHP85_MIN_VERSION: $PHP85_MIN_VERSION" >&2; exit 1 ;; \
+    esac; \
+    php85_packages="$(apk info | grep -E '^php85(-|$)' | sort)"; \
+    test -n "$php85_packages"; \
+    apk --no-cache upgrade $php85_packages; \
+    php85_version="$(php85 -r 'echo PHP_VERSION;')"; \
+    if ! php85 -r 'exit(version_compare(PHP_VERSION, $argv[1], ">=") ? 0 : 1);' "$PHP85_MIN_VERSION"; then \
+        echo "php85 $php85_version is older than $PHP85_MIN_VERSION: the patched package is not in the Alpine v3.24 index yet" >&2; \
+        exit 1; \
+    fi; \
+    test "$(php-fpm85 -v | head -n 1 | awk '{print $2}')" = "$php85_version"; \
+    test "$(apk info | grep -E '^php85(-|$)' | sort)" = "$php85_packages"; \
+    php85_builds="$(apk info -v | grep -E '^php85(-[a-z0-9]+)*-[0-9]' | sed -E 's/^php85(-[a-z0-9]+)*-//' | sort -u)"; \
+    test "$(printf '%s\n' "$php85_builds" | wc -l)" -eq 1; \
+    php-fpm85 -t; \
+    echo "php85 $php85_version ($php85_builds)"
