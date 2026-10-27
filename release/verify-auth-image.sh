@@ -173,10 +173,25 @@ auth_check() {
     docker exec -i -e PASSWORD "$1" python3 - "$2" < "$release_dir/auth-checks.py"
 }
 
+# step DESCRIPTION COMMAND...: run one check; on failure show the end of its
+# output and fail the gate, otherwise print its last line (the JSON summary).
+step() {
+    step_description=$1
+    shift
+    step_output=$("$@" 2>&1) || {
+        printf '%s\n' "$step_output" | tail -n 20 >&2
+        fail "$step_description"
+    }
+    printf '%s\n' "$step_output" | tail -n 1
+}
+
 # Persistent state an upgrade must keep: .rtorrent.rc, the session's
 # .torrent files and a file under /torrents/completed.
 volume_state() {
-    docker exec "$1" sh -c 'sha256sum /torrents/config/rtorrent/.rtorrent.rc /torrents/completed/appbox-gate-marker.txt; ls /torrents/config/rtorrent/.session/ | grep -E "\.torrent$" | sort'
+    docker exec "$1" sh -c 'set -e
+        sha256sum /torrents/config/rtorrent/.rtorrent.rc /torrents/completed/appbox-gate-marker.txt
+        cd /torrents/config/rtorrent/.session
+        for f in *.torrent; do [ -f "$f" ] && echo "$f"; done'
 }
 
 echo "== Gate $run_id: $image_ref ($gate_mode)"
@@ -278,14 +293,14 @@ start_app "$run_id-fresh" "$image_ref" login "$run_id-fresh-torrents" "$run_id-f
 fresh_summary=$(runtime_check "$run_id-fresh" check "$PHP_VERSION") || fail "fresh install runtime checks failed"
 echo "$fresh_summary" | tail -n 1
 fresh_hash=$(echo "$fresh_summary" | tail -n 1 | jq -r '.addtorrent_upload')
-auth_check "$run_id-fresh" login | tail -n 1 || fail "fresh install login checks failed"
+step "fresh install login checks failed" auth_check "$run_id-fresh" login
 if docker logs "$run_id-fresh" 2>&1 | grep -q 'htpasswd is empty'; then
     fail "fresh install logged an empty password file"
 fi
 docker restart --time 30 "$run_id-fresh" >/dev/null
 wait_healthy "$run_id-fresh"
-auth_check "$run_id-fresh" login | tail -n 1 || fail "login checks after restart failed"
-runtime_check "$run_id-fresh" check "$PHP_VERSION" "$fresh_hash" | tail -n 1 || fail "runtime checks after restart failed"
+step "login checks after restart failed" auth_check "$run_id-fresh" login
+step "runtime checks after restart failed" runtime_check "$run_id-fresh" check "$PHP_VERSION" "$fresh_hash"
 docker rm -fv "$run_id-fresh" >/dev/null
 
 echo "== Empty password files: auth stays on"
@@ -301,30 +316,36 @@ for f in rutorrent rpc webdav; do
         || fail "no error logged for the empty $f.htpasswd"
 done
 echo "error logged for each empty file"
-auth_check "$run_id-empty" locked | tail -n 1 || fail "an empty password file let a request through"
+step "an empty password file let a request through" auth_check "$run_id-empty" locked
 echo "-- password files deleted while running"
 docker exec "$run_id-empty" rm -f /passwd/rutorrent.htpasswd /passwd/rpc.htpasswd /passwd/webdav.htpasswd
-auth_check "$run_id-empty" refused | tail -n 1 || fail "a missing password file let a request through"
+step "a missing password file let a request through" auth_check "$run_id-empty" refused
 echo "-- /moduser.sh restores access without a restart"
 docker exec -e PASSWORD "$run_id-empty" sh -c 'exec /moduser.sh "$PASSWORD"' > /dev/null 2>&1 \
     || fail "/moduser.sh failed"
-auth_check "$run_id-empty" login | tail -n 1 || fail "login after /moduser.sh failed"
+step "login after /moduser.sh failed" auth_check "$run_id-empty" login
 echo "-- restart with the empty password files restored"
 docker exec "$run_id-empty" sh -c ': > /passwd/rutorrent.htpasswd; : > /passwd/rpc.htpasswd; : > /passwd/webdav.htpasswd'
 docker restart --time 30 "$run_id-empty" >/dev/null
 wait_healthy "$run_id-empty"
-auth_check "$run_id-empty" locked | tail -n 1 || fail "an empty password file let a request through after restart"
+step "an empty password file let a request through after restart" auth_check "$run_id-empty" locked
 docker rm -fv "$run_id-empty" >/dev/null
 
 echo "== Upgrade from $BASE_NAME with the same /torrents and /passwd"
 new_volume "$run_id-up-torrents"
 new_volume "$run_id-up-passwd"
 start_app "$run_id-old" "$BASE_REF" login "$run_id-up-torrents" "$run_id-up-passwd"
-seeded=$(runtime_check "$run_id-old" seed | tail -n 1 | jq -r '.seeded') || fail "could not add a torrent on $BASE_NAME"
-case "$seeded" in [0-9A-F][0-9A-F]*) ;; *) fail "unexpected seed hash: $seeded" ;; esac
-seeded_two=$(runtime_check "$run_id-old" seed | tail -n 1 | jq -r '.seeded') || fail "could not add a second torrent on $BASE_NAME"
+seeded=$(step "could not add a torrent on $BASE_NAME" runtime_check "$run_id-old" seed | jq -r '.seeded')
+seeded_two=$(step "could not add a second torrent on $BASE_NAME" runtime_check "$run_id-old" seed | jq -r '.seeded')
+for seed_hash in "$seeded" "$seeded_two"; do
+    case "$seed_hash" in
+        [0-9A-F][0-9A-F][0-9A-F][0-9A-F]*) ;;
+        *) fail "unexpected seed hash: $seed_hash" ;;
+    esac
+done
+[ "$seeded" != "$seeded_two" ] || fail "both seeded torrents have the same hash"
 docker exec "$run_id-old" sh -c 'echo appbox-gate > /torrents/completed/appbox-gate-marker.txt && chown rtorrent:rtorrent /torrents/completed/appbox-gate-marker.txt'
-auth_check "$run_id-old" login | tail -n 1 || fail "login checks on $BASE_NAME failed"
+step "login checks on $BASE_NAME failed" auth_check "$run_id-old" login
 # Let rTorrent write its session before stopping, as a running instance would have.
 docker exec "$run_id-old" python3 -c 'import xmlrpc.client; xmlrpc.client.ServerProxy("http://127.0.0.1:8001/").session.save()'
 volume_state "$run_id-old" > "$work_dir/state-old"
@@ -335,8 +356,8 @@ volume_state "$run_id-new" > "$work_dir/state-new"
 diff "$work_dir/state-old" "$work_dir/state-new" || fail "upgrade changed .rtorrent.rc, the session or completed data"
 upgrade_summary=$(runtime_check "$run_id-new" check "$PHP_VERSION" "$seeded") || fail "upgrade runtime checks failed"
 echo "$upgrade_summary" | tail -n 1
-runtime_check "$run_id-new" check "$PHP_VERSION" "$seeded_two" > /dev/null || fail "second torrent missing after upgrade"
-auth_check "$run_id-new" login | tail -n 1 || fail "login checks after upgrade failed"
+step "second torrent missing after upgrade" runtime_check "$run_id-new" check "$PHP_VERSION" "$seeded_two" > /dev/null
+step "login checks after upgrade failed" auth_check "$run_id-new" login
 echo "upgrade kept .rtorrent.rc, $(grep -c '\.torrent$' "$work_dir/state-new") session torrents and completed data; the $BASE_NAME login still works"
 docker rm -fv "$run_id-old" "$run_id-new" >/dev/null
 

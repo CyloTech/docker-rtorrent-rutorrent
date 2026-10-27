@@ -26,15 +26,16 @@ import urllib.request
 RPC_BODY = (b"<?xml version='1.0'?><methodCall><methodName>system.api_version"
             b"</methodName></methodCall>")
 
-# (name, url, method, body, headers)
+# (name, url, method, body, headers, status with a valid login)
 PROTECTED = [
-    ("ui", "http://127.0.0.1/", "GET", None, {}),
-    ("ui_index", "http://127.0.0.1/index.html", "GET", None, {}),
-    ("ui_php", "http://127.0.0.1/php/getsettings.php", "GET", None, {}),
-    ("ui_addtorrent", "http://127.0.0.1/php/addtorrent.php", "GET", None, {}),
-    ("ui_rpc2", "http://127.0.0.1/RPC2", "POST", RPC_BODY, {"Content-Type": "text/xml"}),
-    ("xmlrpc_8000", "http://127.0.0.1:8000/", "POST", RPC_BODY, {"Content-Type": "text/xml"}),
-    ("webdav_9000", "http://127.0.0.1:9000/", "GET", None, {}),
+    ("ui", "http://127.0.0.1/", "GET", None, {}, 200),
+    ("ui_index", "http://127.0.0.1/index.html", "GET", None, {}, 200),
+    ("ui_php", "http://127.0.0.1/php/getsettings.php", "GET", None, {}, 200),
+    # addtorrent.php answers a request without a torrent with a redirect.
+    ("ui_addtorrent", "http://127.0.0.1/php/addtorrent.php", "GET", None, {}, 302),
+    ("ui_rpc2", "http://127.0.0.1/RPC2", "POST", RPC_BODY, {"Content-Type": "text/xml"}, 200),
+    ("xmlrpc_8000", "http://127.0.0.1:8000/", "POST", RPC_BODY, {"Content-Type": "text/xml"}, 200),
+    ("webdav_9000", "http://127.0.0.1:9000/", "GET", None, {}, 200),
 ]
 # The server blocks whose basic auth must stay on, and the password file each uses.
 NGINX_AUTH = {
@@ -83,14 +84,14 @@ def login():
     user, password = os.environ["USERNAME"], os.environ["PASSWORD"]
     assert user and password, "USERNAME and PASSWORD must be set"
     seen = {}
-    for name, url, method, body, headers in PROTECTED:
+    for name, url, method, body, headers, expected in PROTECTED:
         anonymous = status(url, method, body, headers)
         wrong = status(url, method, body, headers, basic(user, password + "x"))
         good = status(url, method, body, headers, basic(user, password))
         assert anonymous == 401, (name, "no login", anonymous)
         assert wrong == 401, (name, "wrong password", wrong)
-        assert good == 200, (name, "valid login", good)
-        seen[name] = "401/401/200"
+        assert good == expected, (name, "valid login", good, expected)
+        seen[name] = "401/401/" + str(good)
     return seen
 
 
@@ -99,7 +100,7 @@ def locked():
     if os.environ.get("USERNAME") and os.environ.get("PASSWORD"):
         attempts.append(basic(os.environ["USERNAME"], os.environ["PASSWORD"]))
     seen = {}
-    for name, url, method, body, headers in PROTECTED:
+    for name, url, method, body, headers, _ in PROTECTED:
         codes = [status(url, method, body, headers, attempt) for attempt in attempts]
         assert all(code == 401 for code in codes), (name, "served without a valid login", codes)
         seen[name] = "401 x" + str(len(codes))
@@ -112,7 +113,7 @@ def locked():
 def refused():
     authorization = basic(os.environ["USERNAME"], os.environ["PASSWORD"])
     seen = {}
-    for name, url, method, body, headers in PROTECTED:
+    for name, url, method, body, headers, _ in PROTECTED:
         code = status(url, method, body, headers, authorization)
         assert code >= 400, (name, "served with the password files missing", code)
         seen[name] = code
