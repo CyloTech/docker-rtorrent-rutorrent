@@ -1,19 +1,26 @@
 #!/usr/bin/env bash
 # Exercise rootfs/usr/local/bin/appbox-installed-callback against a local mock
 # API: retryable statuses back off up to the cap, any other rejection stops
-# after one try, and the callback token in INSTANCE_ID never reaches the log.
+# after one try, the callback token in INSTANCE_ID never reaches the log, and
+# neither token is on curl's command line. APPBOX_CALLBACK_HELPER tests
+# another copy of the helper (the release gate tests the one in the image).
 set -u
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-helper="${repo_root}/rootfs/usr/local/bin/appbox-installed-callback"
+helper="${APPBOX_CALLBACK_HELPER:-${repo_root}/rootfs/usr/local/bin/appbox-installed-callback}"
 
 mock_server='
-import http.server, json, os, sys
+import http.server, json, os, sys, time
 port, codes, log = int(sys.argv[1]), [int(c) for c in sys.argv[2].split(",")], sys.argv[3]
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         seen = sum(1 for _ in open(log)) if os.path.exists(log) else 0
         code = codes[min(seen, len(codes) - 1)]
+        if code < 0:
+            # A negative code answers -code after 3s, so the test can inspect
+            # the running curl process.
+            time.sleep(3)
+            code = -code
         with open(log, "a") as f:
             f.write(json.dumps({
                 "path": self.path,
@@ -124,5 +131,59 @@ ok=0
 [ "${rc}" = 0 ] && grep -q '"token_header": "testtokenheader"' "${work}/requests" \
   && grep -q '"authorization": null' "${work}/requests" && ok=1
 check "CALLBACK_TOKEN sent as X-Cylo-Callback-Token" "${ok}"
+
+# The full INSTANCE_ID, query token included, reaches the API path.
+start_mock 200
+run_helper "http://127.0.0.1:${port}"
+rc=$?
+stop_mock
+ok=0
+[ "${rc}" = 0 ] && grep -q '"path": "/v1/apps/installed/999?callback_token=testtoken0123456789"' "${work}/requests" && ok=1
+check "INSTANCE_ID query token reaches the API path" "${ok}"
+
+# Quotes and backslashes in the token survive curl's config syntax.
+start_mock 200
+run_helper "http://127.0.0.1:${port}" 'CALLBACK_TOKEN=tok"en\x'
+rc=$?
+stop_mock
+ok=0
+[ "${rc}" = 0 ] && grep -qF '"token_header": "tok\"en\\x"' "${work}/requests" && ok=1
+check "CALLBACK_TOKEN with quote and backslash sent unchanged" "${ok}"
+
+# Neither token appears on any process's command line while curl runs
+# (Linux /proc only).
+if [ -d /proc/self ]; then
+  start_mock -200
+  # Export the tokens (shell builtins) instead of run_helper's `env VAR=...`,
+  # which would itself put them on a command line.
+  (
+    export INSTANCE_ID='999?callback_token=testtoken0123456789' \
+      CALLBACK_TOKEN=testtokenheader \
+      APPBOX_CALLBACK_BASE="http://127.0.0.1:${port}" \
+      APPBOX_CALLBACK_RETRY_DELAY=1
+    exec timeout 30 "${helper}"
+  ) >"${work}/output" 2>&1 &
+  helper_pid=$!
+  seen_curl=0
+  leaked=0
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    sleep 0.2
+    for cmdline in /proc/[0-9]*/cmdline; do
+      args=$(tr '\0' ' ' < "${cmdline}" 2>/dev/null) || continue
+      case "${args}" in
+        *testtoken*) leaked=1 ;;
+      esac
+      case "${args}" in
+        curl\ *) seen_curl=1 ;;
+      esac
+    done
+  done
+  wait "${helper_pid}"
+  rc=$?
+  stop_mock
+  ok=0
+  [ "${rc}" = 0 ] && [ "${seen_curl}" = 1 ] && [ "${leaked}" = 0 ] && ok=1
+  check "tokens not on the command line (curl seen=${seen_curl}, leaked=${leaked})" "${ok}"
+fi
 
 exit "${failures}"

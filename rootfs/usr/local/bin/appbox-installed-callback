@@ -9,13 +9,25 @@ if [ -z "${INSTANCE_ID:-}" ] || [ "${SKIP_APPBOX_CALLBACK:-0}" = "1" ]; then
 fi
 
 callback_base="${APPBOX_CALLBACK_BASE:-https://api.cylo.net}"
-callback_headers=(
-  -H "Accept: application/json"
-  -H "Content-Type:application/json"
-)
-if [ -n "${CALLBACK_TOKEN:-}" ]; then
-  callback_headers+=(-H "X-Cylo-Callback-Token: ${CALLBACK_TOKEN}")
-fi
+
+# INSTANCE_ID can carry the callback token as a query string and
+# CALLBACK_TOKEN is a credential. Both reach curl as a config file on stdin,
+# not as arguments, because any user in the container can read a process's
+# command line.
+curl_config_quote() {
+  local value=${1//\\/\\\\}
+  value=${value//\"/\\\"}
+  value=${value//$'\n'/\\n}
+  value=${value//$'\r'/\\r}
+  printf '"%s"' "${value}"
+}
+
+callback_config() {
+  printf 'url = %s\n' "$(curl_config_quote "${callback_base}/v1/apps/installed/${INSTANCE_ID}")"
+  if [ -n "${CALLBACK_TOKEN:-}" ]; then
+    printf 'header = %s\n' "$(curl_config_quote "X-Cylo-Callback-Token: ${CALLBACK_TOKEN}")"
+  fi
+}
 
 # INSTANCE_ID can carry the callback token as a query string; never log it.
 instance_label="${INSTANCE_ID%%\?*}"
@@ -30,9 +42,9 @@ case "${max_retry_delay}" in
 esac
 
 while true; do
-  status=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 120 \
-    "${callback_headers[@]}" \
-    -X POST "${callback_base}/v1/apps/installed/${INSTANCE_ID}" 2>/dev/null) \
+  status=$(callback_config | curl -sS -o /dev/null -w '%{http_code}' --max-time 120 \
+    -H "Accept: application/json" -H "Content-Type:application/json" \
+    -X POST --config - 2>/dev/null) \
     || status=000
 
   case "${status}" in
