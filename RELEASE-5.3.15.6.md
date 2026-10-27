@@ -76,12 +76,57 @@ against this branch before the change: all 140 rootfs files match.
   the completed file unchanged, both torrents still loaded, the same login
   works.
 
+Recorded after the push:
+
+- Digest: `sha256:0fcfa6f3bca3f6276edf1ca255e8774db2d8582089583bbbca9b9a6bf5aaa6ce`
+  (OCI index; linux/amd64 manifest `sha256:dc3e76af63a76bd7480ce3e74fef170b04eccdc103389769785e9cbdc4ac4eb9`)
+- Platform: `linux/amd64`
+- Exact image build commit: `2a5c47fc31bbef814d0d70984bd5b51fa4ab6eb4`
+- Build archive SHA-256: `992df62dd3725af4ae6acdd9fdcc213c7d6e05479547daa7c12c72f6978ae41a`
+- Builder: `builder.grant.appboxes.co` (builder1.builder.appboxes.co did not resolve)
+
+`release/verify-auth-image.sh` passed in release mode before the push:
+registry tag definitively absent (MANIFEST_UNKNOWN) before and after the
+tests; the 5.3.15.5 layers (28) plus two; 33,238 filesystem entries, of
+which only the three replaced files differ, each identical to `rootfs/` and
+0775 root:root; the callback tests (14 cases, including no token in any
+`/proc/*/cmdline` while curl runs; the 5.3.15.5 helper fails only that case);
+ruTorrent's PHP tests (11 files, 1,992 assertions); fresh install (healthy
+after 243s on the loaded builder) and restart: nginx/php-fpm config tests,
+multipart through php-fpm, .torrent upload, torrent kept across the restart,
+and 401 (no login) / 401 (wrong password) / 200 (302 for addtorrent.php) on
+all seven protected paths; empty password files: one error logged per file,
+401 for five login attempts on every protected path, 403 with the files
+deleted, `/no-auth/share.php` still 200, `/moduser.sh` restored the login
+without a restart, still locked after a restart; upgrade from 5.3.15.5 on the
+same volumes with two torrents and a completed file: `.rtorrent.rc`, both
+session torrents and the file unchanged, both torrents loaded, the 5.3.15.5
+login still works.
+
+The first release attempt (commit `8b6470c`) stopped before pushing:
+adding the upgrade test's torrent on 5.3.15.5 returned "Failed" on the loaded
+builder with ruTorrent's default 5-second RPC timeout. `2a5c47f` runs the gate
+containers with the catalogue environment (`RU_RPC_TIME_OUT=300`, as Appbox
+does) and retries that seeding step. A separate control run of 5.3.15.5 with
+empty password files logged "removing authentication" for all three, had
+every `auth_basic` line commented out and answered `/`,
+`/php/getsettings.php` and `/RPC2` with 200 without a login.
+
+Note: s6-overlay writes the container environment to
+`/run/s6/container_environment/` with mode 0644, so `CALLBACK_TOKEN`,
+`INSTANCE_ID` and the install password remain readable to any user inside the
+container through those files. Moving them off curl's command line removes one
+exposure, not that one.
+
 ## Catalogue and rollout (not executed)
 
-Migrations are prepared for cylo-api (`<date>_rutorrent_5_3_15_6.sql` adds
+Migrations are prepared for cylo-api (`20261027_rutorrent_5_3_15_6.sql` adds
 5.3.15.6 enabled, admin-only and not default, every resource column copied
 from 5.3.15.5, app_versions 1440; `..._publish.sql` then makes it the
-default and moves apps 66 to 5.3.15.6 / 5.3.15.6-0.16.24). Existing
+default and moves apps 66 to 5.3.15.6 / 5.3.15.6-0.16.24; both run twice
+against a disposable postgres:16-alpine with the production app_versions
+columns, including refusals for a placeholder digest, publish before add, a
+changed default and a resource difference). Existing
 instances keep 5.3.15.5 until updated. Update with both versions given, e.g.
 `cyloapi apps update 66 --from-version 5.3.15.5 --to-version 5.3.15.6`
 (a bare `apps update 66` would also move the 3.x instances).
