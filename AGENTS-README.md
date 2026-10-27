@@ -14,7 +14,9 @@ users, additional plugins, and a custom mobile ruTorrent UI.
 ## Current Image State
 
 - Registry tag: `repo.cylo.net/rutorrent:5.3.15.4-0.16.24`; `5.3.15.5-0.16.24` is the
-  PHP security release, built with `-f Dockerfile.php-security` (see below).
+  PHP security release, built with `-f Dockerfile.php-security`, and
+  `5.3.15.6-0.16.24` the basic-auth hardening release, built with
+  `-f Dockerfile.auth-fail-closed` (see below).
 - Base runtime: `crazymax/alpine-s6:3.24-3.2.3.0`
 - rTorrent / libtorrent: `0.16.24`
 - ruTorrent: `5.3.15` (upstream commit `fe468360f94b02def11bbf67b16316bbe8081380`, catalogue `5.3.15.4`)
@@ -55,6 +57,11 @@ Key boot scripts:
 
 If you touch password behavior, update the helper rather than duplicating htpasswd logic.
 
+Basic auth is never switched off. Since 5.3.15.6, `03-config.sh` only logs an
+error for an empty or missing htpasswd file; nginx keeps `auth_basic`, so such a
+file refuses every login. Do not restore upstream's "empty file disables auth"
+behaviour.
+
 ## Callback Behavior
 
 When `INSTANCE_ID` is set, `05-appbox.sh` creates `/etc/appbox_callback_pending`
@@ -71,7 +78,8 @@ or not it succeeds. Network errors, 408, 429 and 5xx are retried with backoff
 is logged and not retried: the API rejects a callback for an instance that is no
 longer waiting for one, and an endless retry loop in cont-init used to keep the
 whole app down. `INSTANCE_ID` can include `?callback_token=...`; the helper logs
-only the numeric ID.
+only the numeric ID, and passes the URL and token to curl as a config file on
+stdin so they are not on curl's command line.
 
 Supported controls:
 
@@ -209,6 +217,25 @@ docker build --pull --no-cache --platform linux/amd64 \
   -f Dockerfile.php-security -t repo.cylo.net/rutorrent:5.3.15.5-0.16.24 . && \
   release/verify-image.sh repo.cylo.net/rutorrent:5.3.15.5-0.16.24 && \
   docker push repo.cylo.net/rutorrent:5.3.15.5-0.16.24
+```
+
+## Basic-auth hardening release (5.3.15.6)
+
+`Dockerfile.auth-fail-closed` builds catalogue `5.3.15.6` / tag
+`5.3.15.6-0.16.24` from the immutable 5.3.15.5 image digest and replaces only
+`/etc/cont-init.d/03-config.sh`, `/etc/cont-init.d/025-set-passwd.sh` and
+`/usr/local/bin/appbox-installed-callback` from `rootfs/`. Release gate:
+`release/verify-auth-image.sh <image>` (filesystem identical to 5.3.15.5 except
+those files, callback helper tests with a 5.3.15.5 control, fresh install,
+restart, empty and missing password files, `/moduser.sh` recovery, upgrade
+from 5.3.15.5 on the same volumes, registry absence). Details and results in
+`RELEASE-5.3.15.6.md`.
+
+```bash
+docker build --pull --no-cache --platform linux/amd64 \
+  -f Dockerfile.auth-fail-closed -t repo.cylo.net/rutorrent:5.3.15.6-0.16.24 . && \
+  release/verify-auth-image.sh repo.cylo.net/rutorrent:5.3.15.6-0.16.24 && \
+  docker push repo.cylo.net/rutorrent:5.3.15.6-0.16.24
 ```
 
 ## Build And Release

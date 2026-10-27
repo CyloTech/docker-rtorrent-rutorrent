@@ -94,6 +94,11 @@ Password recovery:
 docker exec <container> /moduser.sh 'NewComplexPassword123!'
 ```
 
+Basic auth always stays on. If a password file is empty or missing,
+`03-config.sh` logs an error and nginx refuses every login to ruTorrent,
+`/RPC2`, XML-RPC and WebDAV until credentials are set (upstream instead turned
+auth off). `/moduser.sh` fixes this without a restart.
+
 ## Appbox Lifecycle
 
 The image uses s6-overlay and keeps `ENTRYPOINT ["/init"]`.
@@ -433,3 +438,12 @@ retries only network errors, 408, 429 and 5xx, and sends `CALLBACK_TOKEN` as
 `X-Cylo-Callback-Token`. `scripts/session-release-gate.py` checks that the app is
 healthy and sends exactly one callback when the API rejects it. rTorrent,
 libtorrent, ruTorrent and plugins are unchanged from `5.3.15.3`.
+
+## Basic-auth hardening (5.3.15.6)
+
+Catalogue `5.3.15.6` stops an empty or missing `/passwd/*.htpasswd` file from
+turning basic auth off: nginx keeps auth on and refuses every login instead,
+and an error is logged. The installed callback passes its URL and token to curl
+on stdin rather than on the command line. The image is 5.3.15.5 with only
+those startup scripts replaced (`Dockerfile.auth-fail-closed`, gate
+`release/verify-auth-image.sh`, notes in `RELEASE-5.3.15.6.md`).

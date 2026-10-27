@@ -1,0 +1,28 @@
+# ruTorrent 5.3.15.6: the published 5.3.15.5 image with three startup scripts
+# replaced from rootfs/.
+#
+# - 03-config.sh no longer comments out nginx auth_basic when a /passwd
+#   htpasswd file is empty, so an empty or missing password file refuses
+#   every login instead of serving ruTorrent, /RPC2, XML-RPC or WebDAV
+#   without authentication.
+# - 025-set-passwd.sh: log text only (an empty file no longer disables auth).
+# - appbox-installed-callback passes the callback URL and token to curl as a
+#   config file on stdin instead of on its command line.
+#
+# Starting from the immutable 5.3.15.5 digest keeps rTorrent, libtorrent,
+# ruTorrent, the plugins, PHP 8.5.12 and every Alpine package exactly as
+# deployed. A full rebuild of Dockerfile would also pull in unpinned package,
+# plugin, pip, cpan and GeoIP changes, and Dockerfile.php-security's php85
+# artifact. release/verify-auth-image.sh is the release gate for this image.
+#
+# Release build (dedicated builder, from the exact pushed commit):
+#   docker build --pull --no-cache --platform linux/amd64 \
+#     -f Dockerfile.auth-fail-closed -t repo.cylo.net/rutorrent:5.3.15.6-0.16.24 .
+
+FROM repo.cylo.net/rutorrent@sha256:0f967374ba2396278b15a6c00e8330156d7daf6a14475071f88d5d88b3e9783b
+
+LABEL io.appbox.rutorrent.base-image="repo.cylo.net/rutorrent@sha256:0f967374ba2396278b15a6c00e8330156d7daf6a14475071f88d5d88b3e9783b"
+
+# Same owner (root:root) and mode (0775) as in the base image.
+COPY --chmod=775 rootfs/etc/cont-init.d/025-set-passwd.sh rootfs/etc/cont-init.d/03-config.sh /etc/cont-init.d/
+COPY --chmod=775 rootfs/usr/local/bin/appbox-installed-callback /usr/local/bin/appbox-installed-callback
