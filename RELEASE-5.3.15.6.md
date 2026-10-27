@@ -58,13 +58,15 @@ against this branch before the change: all 140 rootfs files match.
   same test against the 5.3.15.5 helper as a control (it must fail only on
   the command-line token);
 - ruTorrent's PHP tests (`release/regression/`);
-- fresh install with dummy credentials, then restart: `release/runtime-checks.py`
+- every container runs with app 66's catalogue environment (test values for
+  the templated ones) and dummy `RUTORRENT_USER` / `RUTORRENT_PASSWORD`;
+- fresh install, then restart: `release/runtime-checks.py`
   (nginx/php-fpm config tests, multipart through php-fpm, .torrent upload,
   `/no-auth/share.php`, torrent kept across the restart) and
   `release/auth-checks.py login` (no login and a wrong password get 401, the
   right one 200, on `/`, `/index.html`, `/php/getsettings.php`,
   `/php/addtorrent.php`, `/RPC2`, port 8000 and port 9000);
-- empty password files (USERNAME without PASSWORD): an error logged per file,
+- empty password files (`RUTORRENT_USER` without a password): an error logged per file,
   every protected path refuses every login (`auth-checks.py locked`), the
   same after the files are deleted (`refused`) and after a restart, while
   `/no-auth/share.php` still answers; `/moduser.sh` then restores the login

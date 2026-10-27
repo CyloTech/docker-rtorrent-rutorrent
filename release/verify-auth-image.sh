@@ -144,33 +144,59 @@ new_volume() {
     gate_volumes="$gate_volumes $1"
 }
 
+# The catalogue's app-level environment for app 66 (template values
+# replaced with test values), so the containers run as Appbox runs them.
+APPBOX_ENV="-e EXTERNAL_DOMAIN=https://rtorrent.example.test -e RU_HTTP_TIME_OUT=300
+ -e RU_RPC_TIME_OUT=300 -e RU_CACHED_PLUGIN_LOADING=true -e RU_FORBID_USER_SETTINGS=false
+ -e RT_INC_PORT=50000 -e RT_DHT_PORT=6881 -e WAN_IP=127.0.0.1 -e MEMORY_LIMIT=1G
+ -e UPLOAD_MAX_SIZE=1000G -e REAL_IP_FROM=172.20.0.0/12 -e REAL_IP_HEADER=X-Real-IP
+ -e RT_SESSION_SAVE_SECONDS=300 -e XMLRPC_SIZE_LIMIT=10M -e RT_PREALLOCATE_TYPE=1
+ -e RT_SEND_BUFFER_SIZE=0 -e RT_RECEIVE_BUFFER_SIZE=0"
+
 # start_app NAME IMAGE CREDENTIALS TORRENTS_VOLUME PASSWD_VOLUME
-#   CREDENTIALS: "login" passes USERNAME and PASSWORD (the password from the
-#   environment, not the command line); "user-only" passes only USERNAME.
+#   CREDENTIALS: "login" passes the install fields RUTORRENT_USER and
+#   RUTORRENT_PASSWORD (the password from the environment, not the command
+#   line); "user-only" passes only RUTORRENT_USER.
 start_app() {
     app_name=$1
     app_image=$2
     case "$3" in
-        login) credential_args="-e USERNAME=releasegate -e PASSWORD" ;;
-        user-only) credential_args="-e USERNAME=releasegate" ;;
+        login) credential_args="-e RUTORRENT_USER=releasegate -e RUTORRENT_PASSWORD" ;;
+        user-only) credential_args="-e RUTORRENT_USER=releasegate" ;;
         *) fail "start_app: unknown credentials $3" ;;
     esac
     gate_containers="$gate_containers $app_name"
     # shellcheck disable=SC2086
     docker run -d --name "$app_name" --label "$gate_label" --platform linux/amd64 --network none \
-        $credential_args -e SKIP_APPBOX_CALLBACK=1 -e WAN_IP=127.0.0.1 \
+        $credential_args $APPBOX_ENV -e SKIP_APPBOX_CALLBACK=1 \
         -v "$4:/torrents" -v "$5:/passwd" "$app_image" >/dev/null
     wait_healthy "$app_name"
 }
 
+# The checks sign in with USERNAME and PASSWORD from the docker exec environment.
 runtime_check() {
     app_name=$1
     shift
-    docker exec -i -e PASSWORD "$app_name" python3 - "$@" < "$release_dir/runtime-checks.py"
+    docker exec -i -e USERNAME=releasegate -e PASSWORD "$app_name" python3 - "$@" < "$release_dir/runtime-checks.py"
 }
 
 auth_check() {
-    docker exec -i -e PASSWORD "$1" python3 - "$2" < "$release_dir/auth-checks.py"
+    docker exec -i -e USERNAME=releasegate -e PASSWORD "$1" python3 - "$2" < "$release_dir/auth-checks.py"
+}
+
+# seed NAME: add a torrent on the old image; retried, because it only
+# prepares the upgrade test.
+seed() {
+    for seed_attempt in 1 2 3; do
+        if seed_output=$(runtime_check "$1" seed 2>&1); then
+            printf '%s\n' "$seed_output" | tail -n 1 | jq -r '.seeded'
+            return 0
+        fi
+        printf '%s\n' "$seed_output" | tail -n 3 >&2
+        echo "seed attempt $seed_attempt failed; retrying in 20s" >&2
+        sleep 20
+    done
+    return 1
 }
 
 # step DESCRIPTION COMMAND...: run one check; on failure show the end of its
@@ -284,7 +310,8 @@ for check in "$release_dir"/regression/*.sh; do
 done
 
 PASSWORD=$(od -An -N18 -tx1 /dev/urandom | tr -d ' \n')
-export PASSWORD
+RUTORRENT_PASSWORD=$PASSWORD
+export PASSWORD RUTORRENT_PASSWORD
 
 echo "== Fresh install, then restart"
 new_volume "$run_id-fresh-torrents"
@@ -306,7 +333,7 @@ docker rm -fv "$run_id-fresh" >/dev/null
 echo "== Empty password files: auth stays on"
 new_volume "$run_id-empty-torrents"
 new_volume "$run_id-empty-passwd"
-# USERNAME without PASSWORD: 025-set-passwd.sh leaves /passwd alone and
+# RUTORRENT_USER without a password: 025-set-passwd.sh leaves /passwd alone and
 # 03-config.sh creates the three files empty.
 start_app "$run_id-empty" "$image_ref" user-only "$run_id-empty-torrents" "$run_id-empty-passwd"
 docker exec "$run_id-empty" sh -c 'for f in rutorrent rpc webdav; do test -f /passwd/$f.htpasswd && test ! -s /passwd/$f.htpasswd || exit 1; done' \
@@ -335,8 +362,8 @@ echo "== Upgrade from $BASE_NAME with the same /torrents and /passwd"
 new_volume "$run_id-up-torrents"
 new_volume "$run_id-up-passwd"
 start_app "$run_id-old" "$BASE_REF" login "$run_id-up-torrents" "$run_id-up-passwd"
-seeded=$(step "could not add a torrent on $BASE_NAME" runtime_check "$run_id-old" seed | jq -r '.seeded')
-seeded_two=$(step "could not add a second torrent on $BASE_NAME" runtime_check "$run_id-old" seed | jq -r '.seeded')
+seeded=$(seed "$run_id-old") || fail "could not add a torrent on $BASE_NAME"
+seeded_two=$(seed "$run_id-old") || fail "could not add a second torrent on $BASE_NAME"
 for seed_hash in "$seeded" "$seeded_two"; do
     case "$seed_hash" in
         [0-9A-F][0-9A-F][0-9A-F][0-9A-F]*) ;;
