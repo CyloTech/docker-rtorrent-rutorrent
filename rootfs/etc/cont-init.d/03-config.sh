@@ -171,22 +171,18 @@ touch /passwd/rpc.htpasswd \
   "${RU_LOG_FILE}"
 rm -f /torrents/config/rtorrent/.session/rtorrent.lock
 
-# Check htpasswd files
-if [ ! -s "/passwd/rpc.htpasswd" ]; then
-  echo "rpc.htpasswd is empty, removing authentication..."
-  sed -i "s!auth_basic .*!#auth_basic!g" /etc/nginx/conf.d/rpc.conf
-  sed -i "s!auth_basic_user_file.*!#auth_basic_user_file!g" /etc/nginx/conf.d/rpc.conf
-fi
-if [ ! -s "/passwd/rutorrent.htpasswd" ]; then
-  echo "rutorrent.htpasswd is empty, removing authentication..."
-  sed -i "s!auth_basic .*!#auth_basic!g" /etc/nginx/conf.d/rutorrent.conf
-  sed -i "s!auth_basic_user_file.*!#auth_basic_user_file!g" /etc/nginx/conf.d/rutorrent.conf
-fi
-if [ ! -s "/passwd/webdav.htpasswd" ]; then
-  echo "webdav.htpasswd is empty, removing authentication..."
-  sed -i "s!auth_basic .*!#auth_basic!g" /etc/nginx/conf.d/webdav.conf
-  sed -i "s!auth_basic_user_file.*!#auth_basic_user_file!g" /etc/nginx/conf.d/webdav.conf
-fi
+# Check htpasswd files. Basic auth is never switched off. Upstream commented
+# out auth_basic when a file was empty, which served ruTorrent (including
+# /RPC2), XML-RPC or WebDAV without a login. nginx now keeps auth_basic, so an
+# empty password file refuses every login (401) and a missing one fails the
+# request, until credentials are set. 025-set-passwd.sh writes all three files
+# from RUTORRENT_USER/RUTORRENT_PASSWORD (or USERNAME/PASSWORD) on every start;
+# /moduser.sh <password> writes them at runtime and takes effect immediately.
+for htpasswd_file in /passwd/rutorrent.htpasswd /passwd/rpc.htpasswd /passwd/webdav.htpasswd; do
+  if [ ! -s "${htpasswd_file}" ]; then
+    echo "ERROR: ${htpasswd_file} is empty or missing; authentication stays on and every login is refused until a username and password are set (RUTORRENT_USER/RUTORRENT_PASSWORD, or /moduser.sh <password>)." >&2
+  fi
+done
 
 # rTorrent local config
 echo "Checking rTorrent local configuration..."

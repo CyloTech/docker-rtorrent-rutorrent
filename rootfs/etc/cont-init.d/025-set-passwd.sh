@@ -15,5 +15,5 @@ if [[ -n "${RU_USER}" && -n "${RU_PASS}" ]]; then
   echo "Configuring HTTP basic auth for ruTorrent, XML-RPC, and WebDAV..."
   rtorrent_set_basic_auth "${RU_USER}" "${RU_PASS}"
 else
-  echo "No RUTORRENT_USER/USERNAME or password in environment; leaving /passwd as-is (populate manually or leave empty to disable auth)."
+  echo "No RUTORRENT_USER/USERNAME or password in environment; leaving /passwd as-is (an empty password file refuses every login; it does not disable auth)."
 fi
